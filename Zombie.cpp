@@ -6,7 +6,7 @@ Zombie::Zombie(float x, float y) : speed(50.0f), position(x, y), currentFrame(0)
     // Load walking animation textures
     for (int i = 0; i < 32; ++i) { // Assuming 32 frames for run animation
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/zombie_01/run/run00";
+        std::string filePath = "Assets/zombie_01/run/run00";
         if (i < 10) {
             filePath += "0";
         }

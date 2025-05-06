@@ -12,7 +12,7 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     background.setSize(sf::Vector2f(2000, 2000)); // Set background size to map texture size
 
     // Load map texture
-    if (!mapTexture.loadFromFile("TDCod/Assets/TempMap.png")) {
+    if (!mapTexture.loadFromFile("Assets/TempMap.png")) {
         std::cerr << "Error loading map texture!" << std::endl;
     }
     mapSprite.setTexture(mapTexture);

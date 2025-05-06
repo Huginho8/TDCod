@@ -7,7 +7,7 @@ Player::Player() : speed(100.0f), velocity(0.0f, 0.0f), currentFrame(0), animati
     // Load walking animation textures
     for (int i = 0; i < 20; ++i) {
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Top_Down_Survivor/knife/move/survivor-move_knife_" + std::to_string(i) + ".png";
+        std::string filePath = "Assets/Top_Down_Survivor/knife/move/survivor-move_knife_" + std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player texture: " << filePath << std::endl;
         }
@@ -17,7 +17,7 @@ Player::Player() : speed(100.0f), velocity(0.0f, 0.0f), currentFrame(0), animati
     // Load attack animation textures
     for (int i = 0; i < 15; ++i) { // Assuming 15 frames for attack animation
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Top_Down_Survivor/knife/meleeattack/survivor-meleeattack_knife_" + std::to_string(i) + ".png";
+        std::string filePath = "Assets/Top_Down_Survivor/knife/meleeattack/survivor-meleeattack_knife_" + std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player attack texture: " << filePath << std::endl;
         }
