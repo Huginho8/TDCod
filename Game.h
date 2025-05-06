@@ -22,6 +22,7 @@ private:
     sf::Text pointsText;
     sf::Clock clock;
     std::vector<Zombie> zombies; // Add a vector to hold zombies
+    sf::View cameraView;
 
     void processInput();
     void update(float deltaTime);

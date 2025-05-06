@@ -3,7 +3,7 @@
 #include <cmath> // Include cmath for atan2
 #include <algorithm> // Include for std::min and std::max
 
-Player::Player() : speed(100.0f), velocity(0.0f, 0.0f), currentFrame(0), animationTimer(0.0f), animationFrameTime(0.1f), isAttacking(false), currentAttackFrame(0), attackTimer(0.0f), attackFrameTime(0.05f), rotationSpeed(180.0f), scaleFactor(0.35f) { // Reduced scaleFactor
+Player::Player() : speed(150.0f), velocity(0.0f, 0.0f), currentFrame(0), animationTimer(0.0f), animationFrameTime(0.1f), isAttacking(false), currentAttackFrame(0), attackTimer(0.0f), attackFrameTime(0.05f), rotationSpeed(180.0f), scaleFactor(0.35f) { // Reduced scaleFactor
     // Load walking animation textures
     for (int i = 0; i < 20; ++i) {
         sf::Texture texture;

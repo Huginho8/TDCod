@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 
-Zombie::Zombie(float x, float y) : speed(50.0f), position(x, y), currentFrame(0), animationTimer(0.0f), animationFrameTime(0.1f) {
+Zombie::Zombie(float x, float y) : speed(100.0f), position(x, y), currentFrame(0), animationTimer(0.0f), animationFrameTime(0.1f) {
     // Load walking animation textures
     for (int i = 0; i < 32; ++i) { // Assuming 32 frames for run animation
         sf::Texture texture;

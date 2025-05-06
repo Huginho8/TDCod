@@ -6,7 +6,7 @@
 #include <cmath> // Include cmath for atan2
 #include <vector> // Include for std::vector
 
-Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0), zombiesToNextLevel(15) {
+Game::Game() : window(sf::VideoMode(1600, 900), "Echoes of Valkyrie"), points(0), zombiesToNextLevel(15) {
     window.setFramerateLimit(60);
     background.setFillColor(sf::Color::Blue);
     background.setSize(sf::Vector2f(2000, 2000)); // Set background size to map texture size
@@ -18,6 +18,10 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     mapSprite.setTexture(mapTexture);
     mapSprite.setOrigin(mapTexture.getSize().x / 2.0f, mapTexture.getSize().y / 2.0f);
     mapSprite.setScale(2.0f, 2.0f); // Scale the map
+
+    // Initialize camera view
+    cameraView.setSize(window.getSize().x, window.getSize().y);
+    cameraView.setCenter(800, 450); // Default center
 
     // Font for displaying points
     // sf::Font font;
@@ -64,15 +68,11 @@ void Game::processInput() {
 void Game::update(float deltaTime) {
     player.update(deltaTime, window, mapTexture.getSize()); // Pass window and mapSize
 
-    // Camera movement
+    // Center the view on the player
     sf::Vector2f playerPosition = player.getPosition();
-    sf::Vector2f cameraPosition(playerPosition.x - 400, playerPosition.y - 300); // Center the camera
+    cameraView.setCenter(playerPosition);
 
-    // Get map size
-    sf::Vector2u mapSize = mapTexture.getSize();
-    float cameraX = cameraPosition.x;
-    float cameraY = cameraPosition.y;
-    mapSprite.setPosition(-cameraX, -cameraY);
+
 
     // Prevent player from going out of bounds - Map boundaries
     sf::FloatRect playerBounds = player.getSprite().getGlobalBounds();
@@ -109,6 +109,8 @@ void Game::update(float deltaTime) {
 
 void Game::render() {
     window.clear();
+    window.setView(cameraView);
+
     window.draw(background);
     window.draw(mapSprite); // Draw the map
     player.draw(window);
