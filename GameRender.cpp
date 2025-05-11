@@ -4,7 +4,7 @@
 
 void GameRender::render(sf::RenderWindow& window, const GameWorld& world) {
     for (const auto& entity : world.entities) {
-        if (entity->isAlive()) {
+        if (entity->isAlive() || entity->getType() == EntityType::Wall) {
             draw(*entity, window);
         }
     }

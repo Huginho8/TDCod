@@ -9,7 +9,7 @@ public:
     void handleInput(float dt);
 
 private:
-    float speed = 200.f;
+    float speed = 100.f;
     float shootCooldown = 0.3f;
     float shootTimer = 0.f;
 };

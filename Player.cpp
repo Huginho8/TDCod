@@ -2,7 +2,7 @@
 #include <SFML/Window/Keyboard.hpp>
 
 Player::Player(Vec2 position)
-    : Entity(EntityType::Player, position, Vec2(32, 32), false, 1.3f, true) {
+    : Entity(EntityType::Player, position, Vec2(32, 32), false, 2.0f, true) {
     body.getShape().setFillColor(sf::Color::Red);
     getBody().isCircle = true;
 }

@@ -117,18 +117,49 @@ void PhysicsWorld::resolveDynamicCollision(PhysicsBody& a, PhysicsBody& b) {
 
 
 void PhysicsWorld::resolveStaticCollision(PhysicsBody& a, PhysicsBody& b) {
-    Vec2 diff = a.position - b.position;
-    float distance = diff.length();
-    float penetration = (a.size.x / 2.f + b.size.x / 2.f) - distance;
+    // Only resolve if 'a' is a circle and 'b' is a box (AABB)
+    if (!a.isCircle || b.isCircle) return;
 
-    if (penetration > 0.01f) {
-        diff.normalize();  // modifies diff in-place
-        Vec2 correction = diff * penetration;
-        a.position += correction;
+    float radius = a.size.x / 2.f;
+
+    // AABB bounds
+    float halfW = b.size.x / 2.f;
+    float halfH = b.size.y / 2.f;
+
+    float left = b.position.x - halfW;
+    float right = b.position.x + halfW;
+    float top = b.position.y - halfH;
+    float bottom = b.position.y + halfH;
+
+    // Clamp circle center to AABB
+    float closestX = std::max(left, std::min(a.position.x, right));
+    float closestY = std::max(top, std::min(a.position.y, bottom));
+
+    // Compute vector from closest point to circle center
+    Vec2 diff = a.position - Vec2(closestX, closestY);
+    float distSq = diff.x * diff.x + diff.y * diff.y;
+
+    if (distSq < radius * radius) {
+        float distance = std::sqrt(distSq);
+        float penetration = radius - distance;
+
+        if (penetration > 0.01f) {
+            if (distance != 0.f) {
+                diff.normalize(); // normalize in-place
+                a.position += diff * penetration;
+            }
+            else {
+                // If perfectly overlapping, push upward
+                a.position.y -= penetration;
+            }
+        }
+
+
+        // Reflect velocity with some energy loss
+        a.velocity = a.velocity * -0.3f;
     }
-
-    a.velocity = a.velocity * -0.3f;
 }
+
 
 void PhysicsWorld::handleCollision(Entity* a, Entity* b) {
     if (a && b) {

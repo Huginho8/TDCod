@@ -7,10 +7,11 @@ void GameWorld::init() {
 
     // Box walls: Top, Bottom, Left, Right
     std::vector<Vec2> wallPositions = {
-        {width / 2, -thickness / 2}, // Top
-        {width / 2, height + thickness / 2}, // Bottom
-        {-thickness / 2, height / 2}, // Left
-        {width + thickness / 2, height / 2} // Right
+        {width / 2, thickness / 2},           // Top
+        {width / 2, height - thickness / 2},  // Bottom
+        {thickness / 2, height / 2},          // Left
+        {width - thickness / 2, height / 2}   // Right
+
     };
 
     std::vector<Vec2> wallSizes = {
@@ -21,7 +22,7 @@ void GameWorld::init() {
     };
 
     for (size_t i = 0; i < wallPositions.size(); ++i) {
-        auto wall = std::make_unique<Entity>(EntityType::Wall, wallPositions[i], wallSizes[i], true, 0);
+        auto wall = std::make_unique<Entity>(EntityType::Wall, wallPositions[i], wallSizes[i], true, 0, false);
         physics.addBody(&wall->getBody(), true);
         entities.push_back(std::move(wall));
     }
@@ -34,7 +35,7 @@ void GameWorld::init() {
 
     // Create 10 zombies
     for (int i = 0; i < 10; ++i) {
-        auto z = std::make_unique<Zombie>(Vec2(100 + i * 50, 100), 60.0f);
+        auto z = std::make_unique<Zombie>(Vec2(100 + i * 50, 100), 30.0f);
         z->setTarget(player);
         physics.addBody(&z->getBody(), false);
         entities.push_back(std::move(z));

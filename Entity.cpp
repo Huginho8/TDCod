@@ -3,7 +3,6 @@
 Entity::Entity(EntityType type, Vec2 position, Vec2 size, bool isStatic, float mass, bool isCircle)
     : type(type), body(position, size, isStatic, mass, isCircle)
 {
-    body.getShape().setFillColor(sf::Color::White);
     body.owner = this;
 }
 
