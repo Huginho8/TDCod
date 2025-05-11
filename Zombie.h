@@ -1,24 +1,16 @@
-#ifndef ZOMBIE_H
-#define ZOMBIE_H
+#pragma once
+#include "Entity.h"
 
-#include <SFML/Graphics.hpp>
-
-class Zombie {
+class Zombie : public Entity {
 public:
-    Zombie(float x, float y);
-    void update(float deltaTime, sf::Vector2f playerPosition);
-    void draw(sf::RenderWindow& window) const; // Make draw const
-    sf::FloatRect getBounds() const; // Add bounds for collision detection
+    Zombie(Vec2 position, float speed);
+
+    void update(float dt) override;
+    void onCollision(Entity* other) override;
+
+    void setTarget(Entity* target);
 
 private:
-    sf::Sprite sprite;
-    std::vector<sf::Texture> walkingTextures; // Add walking textures
-    int currentFrame;
-    float animationTimer;
-    float animationFrameTime;
-    sf::Texture texture;
     float speed;
-    sf::Vector2f position;
+    Entity* target;
 };
-
-#endif

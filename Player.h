@@ -1,35 +1,15 @@
-#ifndef PLAYER_H
-#define PLAYER_H
+#pragma once
+#include "Entity.h"
 
-#include <SFML/Graphics.hpp>
-
-class Player {
+class Player : public Entity {
 public:
-    Player();
-    void update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize); // Pass window and mapSize
-    void draw(sf::RenderWindow& window);
-    void setPosition(float x, float y);
-    sf::Vector2f getPosition() const;
-    sf::Sprite& getSprite();
-    void attack(); // Add attack function
+    Player(Vec2 position);
+
+    void update(float dt) override;
+    void handleInput(float dt);
 
 private:
-    sf::Sprite sprite;
-    sf::Texture texture;
-    float speed;
-    //float speed = 100.0f;
-    sf::Vector2f velocity;
-    std::vector<sf::Texture> walkingTextures;
-    std::vector<sf::Texture> attackTextures; // Add attack textures
-    int currentFrame;
-    float animationTimer;
-    float animationFrameTime;
-    bool isAttacking; // Add attacking state
-    int currentAttackFrame; // Add current attack frame
-    float attackTimer; // Add attack timer
-    float attackFrameTime; // Add attack frame time
-    float rotationSpeed; // Add rotation speed
-    float scaleFactor; // Add scale factor
+    float speed = 200.f;
+    float shootCooldown = 0.3f;
+    float shootTimer = 0.f;
 };
-
-#endif
