@@ -58,6 +58,7 @@ void Doctor::update(float deltaTime, sf::Vector2f playerPosition) {
     float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
     
     // If player is in range but not too close, move towards them
+    // If player is in range but not too close, move towards them
     if (distance < FOLLOW_DISTANCE && distance > MIN_DISTANCE) {
         setState(DoctorState::WALK);
         

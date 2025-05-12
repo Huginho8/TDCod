@@ -304,9 +304,6 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
         health = std::min(maxHealth, health + healthRegenRate * deltaTime);
     }
 
-    // Set default state to idle, will be changed if necessary
-    setState(PlayerState::IDLE);
-    
     // Reset velocity
     velocity.x = 0.0f;
     velocity.y = 0.0f;
@@ -337,7 +334,8 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     }
     
     // Set state based on movement (only change if not attacking to maintain attack animation)
-    if (!attacking) {
+    // Set state based on movement (only change if not attacking or dead)
+    if (!attacking && !dead) {
         if (velocity.x != 0 || velocity.y != 0) {
             setState(PlayerState::WALK); // Always WALK state if moving
         } else {
