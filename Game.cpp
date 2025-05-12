@@ -1,10 +1,10 @@
-#include "Game.h" 
+#include "Game.h"
 #include <iostream>
 #include <algorithm>
 #include <random>
 #include <cmath>
-#include <vector>
 
+#include <SFML/Audio.hpp>
 Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0), zombiesToNextLevel(15) {
     window.setFramerateLimit(60);
     
@@ -19,11 +19,11 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     mapSprite.setTexture(mapTexture);
     
     // Load font
-    if (!font.loadFromFile("TDCod/Assets/Fonts/arial.ttf")) {
-        std::cerr << "Error loading font!" << std::endl;
-        // Try system font as fallback
-        if (!font.loadFromFile("arial.ttf")) {
-            std::cerr << "Error loading fallback font as well!" << std::endl;
+    if (!font.loadFromFile("Cutscene/Assets/Call of Ops Duty.otf")) {
+        std::cerr << "Error loading font 'Cutscene/Assets/Call of Ops Duty.otf'! Trying fallback." << std::endl;
+        // Fallback to a generic system font name if the primary one fails
+        if (!font.loadFromFile("arial.ttf")) { // This is a common system font, but might not exist
+            std::cerr << "Error loading fallback font 'arial.ttf' as well!" << std::endl;
         }
     }
     
@@ -39,12 +39,30 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     
     // Initialize level manager
     levelManager.initialize();
+    // Load sounds
+    if (!backgroundMusic.openFromFile("TDCod/Assets/Audio/atmosphere.mp3")) {
+        std::cerr << "Error loading background music! Path: TDCod/Assets/Audio/atmosphere.mp3" << std::endl;
+        // Optionally set a flag here to indicate loading failure
+    }
 }
 
 void Game::run() {
     while (window.isOpen()) {
         processInput();
         float deltaTime = clock.restart().asSeconds();
+
+        // Manage background music based on game state
+        GameState currentState = levelManager.getCurrentState();
+        if (currentState != GameState::GAME_OVER && currentState != GameState::VICTORY) {
+            if (backgroundMusic.getStatus() != sf::Music::Playing) {
+                backgroundMusic.setLoop(true);
+                backgroundMusic.play();
+            }
+        } else {
+            // Stop background music in GAME_OVER or VICTORY states
+            if (backgroundMusic.getStatus() == sf::Music::Playing) backgroundMusic.stop();
+        }
+
         update(deltaTime);
         render();
     }
@@ -73,11 +91,16 @@ void Game::processInput() {
 }
 
 void Game::update(float deltaTime) {
-    // Update player with window and map size
-    player.update(deltaTime, window, mapTexture.getSize());
+    // Get mouse position in world coordinates
+    sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
+    sf::Vector2f worldMousePosition = window.mapPixelToCoords(mousePosition, gameView); // Use gameView for mapping
+
+    // Update player with window, map size, and world mouse position
+    player.update(deltaTime, window, mapTexture.getSize(), worldMousePosition);
     
     // Update level manager
     levelManager.update(deltaTime, player);
+    
     
     // Check for collisions between player and zombies
     checkZombiePlayerCollisions();
@@ -131,8 +154,11 @@ void Game::render() {
     pointsText.setString("Points: " + std::to_string(points));
     window.draw(pointsText);
     
-    // Draw level UI
+    // Draw level UI (dialogs)
     levelManager.renderUI(window, font);
+    
+    // Draw HUD (health, stamina, etc.)
+    levelManager.drawHUD(window, player);
     
     // Display everything
     window.display();
@@ -145,22 +171,34 @@ void Game::checkZombiePlayerCollisions() {
         if (!zombie.isAlive()) continue;
         
         // Check for player-zombie collision
-        if (isCollision(player.getHitbox(), zombie.getHitbox())) {
-            player.takeDamage(zombie.getDamage());
-            
-            // Knockback player away from zombie
-            sf::Vector2f direction = player.getPosition() - zombie.getPosition();
-            float magnitude = sqrt(direction.x * direction.x + direction.y * direction.y);
-            if (magnitude > 0) {
-                direction.x /= magnitude;
-                direction.y /= magnitude;
-                player.applyKnockback(direction, 50.0f);
+        sf::FloatRect playerHitbox = player.getHitbox();
+        sf::FloatRect zombieHitbox = zombie.getHitbox();
+
+        bool pzCollision = isCollision(playerHitbox, zombieHitbox);
+        // Check for player-zombie collision AND if the zombie is currently attacking
+        if (pzCollision && zombie.isAttacking()) {
+            // Use tryDealDamage to ensure damage is only applied once per attack animation
+            float damageToApply = zombie.tryDealDamage();
+            if (damageToApply > 0) {
+                player.takeDamage(damageToApply);
+                
+                // Knockback player away from zombie
+                sf::Vector2f direction = player.getPosition() - zombie.getPosition();
+                float magnitude = sqrt(direction.x * direction.x + direction.y * direction.y);
+                if (magnitude > 0) {
+                    direction.x /= magnitude;
+                    direction.y /= magnitude;
+                    player.applyKnockback(direction, 50.0f);
+                }
             }
         }
         
         // Check for player attack-zombie collision
         if (player.isAttacking()) {
-            if (isCollision(player.getAttackHitbox(), zombie.getHitbox())) {
+            sf::FloatRect playerAttackBox = player.getAttackHitbox();
+            // Zombie hitbox already fetched as zombieHitbox
+            bool paZCollision = isCollision(playerAttackBox, zombieHitbox);
+            if (paZCollision) {
                 zombie.takeDamage(player.getAttackDamage());
                 
                 // If zombie defeated
@@ -216,4 +254,7 @@ void Game::reset() {
     zombiesToNextLevel = 15;
     levelManager.reset();
     player.reset();
+}
+sf::RenderWindow& Game::getWindow() {
+    return window;
 }

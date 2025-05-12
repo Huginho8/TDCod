@@ -3,11 +3,13 @@
 #include <random>
 #include <cmath>
 
-LevelManager::LevelManager() 
-    : gameState(GameState::TUTORIAL), 
-      currentLevel(0), 
+LevelManager::LevelManager()
+    : gameState(GameState::TUTORIAL),
+      currentLevel(0),
+      previousLevel(0), // Initialize previousLevel
       tutorialComplete(false),
-      doctorSpawned(false),
+      // doctorSpawned is no longer needed with std::optional
+      tutorialZombiesSpawned(false), // Initialize new flag
       currentDialogIndex(0),
       showingDialog(false) {
     
@@ -23,11 +25,11 @@ LevelManager::LevelManager()
     };
     
     // Load font
-    if (!font.loadFromFile("TDCod/Assets/Fonts/arial.ttf")) {
-        std::cerr << "Error loading font for dialog!" << std::endl;
-        // Fallback to system font if available
-        if (!font.loadFromFile("arial.ttf")) {
-            std::cerr << "Error loading fallback font as well!" << std::endl;
+    if (!font.loadFromFile("Cutscene/Assets/Call of Ops Duty.otf")) {
+        std::cerr << "Error loading font for dialog! Trying fallback." << std::endl;
+        // Fallback to a generic system font name if the primary one fails
+        if (!font.loadFromFile("arial.ttf")) { // This is a common system font, but might not exist
+            std::cerr << "Error loading fallback font 'arial.ttf' as well!" << std::endl;
         }
     }
     
@@ -56,6 +58,7 @@ void LevelManager::initialize() {
 }
 
 void LevelManager::update(float deltaTime, Player& player) {
+    previousLevel = currentLevel; // Store the current level before updating
     // Update based on current game state
     switch (gameState) {
         case GameState::TUTORIAL:
@@ -64,11 +67,21 @@ void LevelManager::update(float deltaTime, Player& player) {
                 showingDialog = true;
             }
             
-            // Update zombies
-            updateZombies(deltaTime, player);
+            // Update zombies only if they have been spawned
+            if (tutorialZombiesSpawned) {
+                updateZombies(deltaTime, player);
+            }
             
-            // Check if tutorial is complete (all zombies defeated)
-            if (zombies.empty() && currentDialogIndex >= tutorialDialogs.size()) {
+            // Check if dialogue is finished to spawn tutorial zombies
+            if (currentDialogIndex >= tutorialDialogs.size() && !tutorialZombiesSpawned) {
+                if (doctor) { // Ensure doctor exists before getting position
+                    spawnZombies(3, doctor->getPosition());
+                }
+                tutorialZombiesSpawned = true;
+            }
+
+            // Check if tutorial is complete (dialogue finished AND all zombies defeated)
+            if (zombies.empty() && tutorialZombiesSpawned && currentDialogIndex >= tutorialDialogs.size()) {
                 tutorialComplete = true;
                 loadLevel(1); // Proceed to level 1
             }
@@ -98,8 +111,8 @@ void LevelManager::update(float deltaTime, Player& player) {
     }
     
     // Update doctor NPC
-    if (doctorSpawned) {
-        doctor.update(deltaTime, player.getPosition());
+    if (doctor) {
+        doctor->update(deltaTime, player.getPosition());
     }
 }
 
@@ -111,14 +124,14 @@ void LevelManager::draw(sf::RenderWindow& window) {
     drawZombies(window);
     
     // Draw doctor if spawned
-    if (doctorSpawned) {
-        drawDoctor(window);
+    if (doctor) {
+        doctor->draw(window);
     }
     
-    // Draw dialog if showing
-    if (showingDialog && currentDialogIndex < tutorialDialogs.size()) {
-        showTutorialDialog(window);
-    }
+    // Draw dialog if showing - This is now handled by renderUI
+    // if (showingDialog && currentDialogIndex < tutorialDialogs.size()) {
+    //     showTutorialDialog(window);
+    // }
 }
 
 // Alias for draw method to match Game.cpp usage
@@ -127,12 +140,27 @@ void LevelManager::render(sf::RenderWindow& window) {
 }
 
 // Render UI elements
-void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
+void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& fontToUse) { // Renamed param to avoid conflict with member
     // Draw dialog if showing
     if (showingDialog && currentDialogIndex < tutorialDialogs.size()) {
+        // Ensure dialogText uses the font passed to renderUI or the member font
+        dialogText.setFont(this->font); // Prefer member font for consistency if loaded
+        // promptText is local to showTutorialDialog and will use this->font there.
         showTutorialDialog(window);
     }
+    // It seems Game.cpp passes its own font to renderUI, but LevelManager also has a font member.
+    // For HUD elements, we'll use the LevelManager's member font.
+    // The Player object needs to be accessible here to draw its HUD.
+    // This suggests drawHUD might be better called from Game::render directly,
+    // or Player reference needs to be available in renderUI.
+    // For now, assuming Player object is accessible via a getter in Game or passed differently.
+    // This will likely require further changes in Game.cpp to pass the player object.
+    // Temporarily, we can't draw player-specific HUD here without player reference.
+    // Let's assume drawHUD will be called from Game::render where player is available.
 }
+
+// drawHUD needs to be called from Game::render or similar where Player is available.
+// For now, I will modify it as requested, but the call site needs adjustment.
 
 // Progress to next level
 void LevelManager::nextLevel() {
@@ -148,7 +176,7 @@ void LevelManager::nextLevel() {
 void LevelManager::reset() {
     currentLevel = 0;
     zombies.clear();
-    doctorSpawned = false;
+    doctor.reset(); // Clear the optional doctor
     tutorialComplete = false;
     currentDialogIndex = 0;
     showingDialog = false;
@@ -172,8 +200,7 @@ void LevelManager::startTutorial() {
     // Spawn doctor in tutorial
     spawnDoctor(400, 300);
     
-    // Spawn a few zombies for the tutorial
-    spawnZombies(3, doctor.getPosition());
+    // Zombies will now be spawned in update() after dialogue
 }
 
 bool LevelManager::isTutorialComplete() const {
@@ -206,20 +233,25 @@ int LevelManager::getCurrentLevel() const {
     return currentLevel;
 }
 
+int LevelManager::getPreviousLevel() const {
+    return previousLevel;
+}
+
 void LevelManager::spawnDoctor(float x, float y) {
-    doctor = Doctor(x, y);
-    doctorSpawned = true;
+    doctor.emplace(x, y); // Construct Doctor in-place
 }
 
 void LevelManager::drawDoctor(sf::RenderWindow& window) {
-    doctor.draw(window);
+    // This method is called within an 'if (doctor)' block in draw(),
+    // so we can assume doctor has a value here.
+    doctor->draw(window);
 }
 
 bool LevelManager::isPlayerNearDoctor(const Player& player) const {
-    if (!doctorSpawned) return false;
+    if (!doctor) return false; // Check if doctor exists
     
     sf::Vector2f playerPos = player.getPosition();
-    sf::Vector2f doctorPos = doctor.getPosition();
+    sf::Vector2f doctorPos = doctor->getPosition(); // Access via ->
     
     // Calculate distance
     float dx = playerPos.x - doctorPos.x;
@@ -269,10 +301,15 @@ void LevelManager::updateZombies(float deltaTime, const Player& player) {
     // Check for collision with player attacks
     auto it = zombies.begin();
     while (it != zombies.end()) {
-        if (player.isAttacking() && player.getAttackBounds().intersects(it->getBounds())) {
-            // Hit detected, remove zombie
-            it = zombies.erase(it);
-        } else {
+        bool erased = false;
+        if (player.isAttacking() && player.getAttackBounds().intersects(it->getHitbox())) { // Use getHitbox()
+            it->takeDamage(player.getAttackDamage()); // Apply damage
+            if (it->isDead()) {
+                it = zombies.erase(it); // Erase if dead
+                erased = true;
+            }
+        }
+        if (!erased) {
             ++it;
         }
     }
@@ -289,21 +326,44 @@ std::vector<Zombie>& LevelManager::getZombies() {
 }
 
 void LevelManager::drawHUD(sf::RenderWindow& window, const Player& player) {
-    // Draw stamina bar
-    sf::RectangleShape staminaBar;
-    staminaBar.setSize(sf::Vector2f(200 * (player.getCurrentStamina() / player.getMaxStamina()), 20));
-    staminaBar.setFillColor(sf::Color::Green);
-    staminaBar.setPosition(10, 10);
+    sf::Vector2u windowSize = window.getSize();
+    float barWidth = 200;
+    float barHeight = 20;
+    float padding = 10;
+
+    // Draw Health Bar (Top-Right)
+    sf::RectangleShape healthBarBackground;
+    healthBarBackground.setSize(sf::Vector2f(barWidth, barHeight));
+    healthBarBackground.setFillColor(sf::Color(100, 100, 100, 150)); // Dark grey background
+    healthBarBackground.setPosition(windowSize.x - barWidth - padding, padding);
     
+    sf::RectangleShape healthBar;
+    float healthPercent = player.getCurrentHealth() / player.getMaxHealth();
+    if (healthPercent < 0) healthPercent = 0; // Ensure not negative
+    healthBar.setSize(sf::Vector2f(barWidth * healthPercent, barHeight));
+    healthBar.setFillColor(sf::Color::Red);
+    healthBar.setPosition(windowSize.x - barWidth - padding, padding);
+
+    window.draw(healthBarBackground);
+    window.draw(healthBar);
+
+    // Draw Stamina Bar (Bottom-Middle)
     sf::RectangleShape staminaBarBackground;
-    staminaBarBackground.setSize(sf::Vector2f(200, 20));
+    staminaBarBackground.setSize(sf::Vector2f(barWidth, barHeight));
     staminaBarBackground.setFillColor(sf::Color(100, 100, 100, 150));
-    staminaBarBackground.setPosition(10, 10);
+    staminaBarBackground.setPosition((windowSize.x - barWidth) / 2.0f, windowSize.y - barHeight - padding);
+    
+    sf::RectangleShape staminaBar;
+    float staminaPercent = player.getCurrentStamina() / player.getMaxStamina();
+    if (staminaPercent < 0) staminaPercent = 0; // Ensure not negative
+    staminaBar.setSize(sf::Vector2f(barWidth * staminaPercent, barHeight));
+    staminaBar.setFillColor(sf::Color::Green);
+    staminaBar.setPosition((windowSize.x - barWidth) / 2.0f, windowSize.y - barHeight - padding);
     
     window.draw(staminaBarBackground);
     window.draw(staminaBar);
     
-    // Draw level info
+    // Draw level info (Top-Left)
     sf::Text levelText;
     levelText.setFont(font);
     levelText.setCharacterSize(18);

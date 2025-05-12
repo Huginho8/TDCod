@@ -19,6 +19,7 @@ public:
     
     sf::Vector2f getPosition() const;
     sf::FloatRect getBounds() const;
+    sf::FloatRect getHitbox() const; // Added for debug drawing
     
 private:
     sf::Sprite sprite;

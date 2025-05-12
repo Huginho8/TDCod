@@ -2,7 +2,7 @@
 #include <iostream>
 #include <cmath>
 
-Zombie::Zombie(float x, float y) 
+Zombie::Zombie(float x, float y)
     : position(x, y),
       currentState(ZombieState::WALK),
       speed(50.0f),
@@ -15,17 +15,18 @@ Zombie::Zombie(float x, float y)
       attackFrameTime(0.1f),
       attackCooldown(2.0f),
       timeSinceLastAttack(0.0f),
-      attackDamage(10.0f),
-      attackRange(60.0f),
+      attackDamage(5.0f), // Reduced from 10.0f
+      attackRange(40.0f), // Reduced from 60.0f
       dead(false),
       currentDeathFrame(0),
       deathTimer(0.0f),
       deathFrameTime(0.15f),
       health(30.0f),
-      maxHealth(30.0f) {
-          
+      maxHealth(30.0f),
+      m_hasDealtDamageInAttack(false) { // Initialize the new flag
+
     loadTextures();
-    
+
     // Set initial texture to walk
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
@@ -41,37 +42,31 @@ void Zombie::loadTextures() {
     for (int i = 0; i < 9; ++i) { // Assuming 32 frames for run animation
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieWalker/Walk/walk_00";
-        if (i < 10) {
-            filePath += "0";
-        }
+        // Removed conditional extra '0' to match 3-digit filenames like walk_000.png
         filePath += std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading zombie walk texture: " << filePath << std::endl;
         }
         walkTextures.push_back(texture);
     }
-    
+
     // Load attack animation textures
     for (int i = 0; i < 9; ++i) { // Assuming 32 frames for attack animation
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieWalker/Attack/Attack_00";
-        if (i < 10) {
-            filePath += "0";
-        }
+        // Removed conditional extra '0' to match 3-digit filenames like Attack_000.png
         filePath += std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading zombie attack texture: " << filePath << std::endl;
         }
         attackTextures.push_back(texture);
     }
-    
+
     // Load death animation textures
     for (int i = 0; i < 6; ++i) { // Assuming 30 frames for death animation
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieWalker/Death/Death_00";
-        if (i < 10) {
-            filePath += "0";
-        }
+        // Removed conditional extra '0' to match 3-digit filenames like Death_000.png
         filePath += std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading zombie death texture: " << filePath << std::endl;
@@ -86,14 +81,14 @@ void Zombie::update(float deltaTime, sf::Vector2f playerPosition) {
         updateAnimation(deltaTime);
         return;
     }
-    
+
     // Calculate direction and distance to player
     sf::Vector2f direction = playerPosition - position;
     float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
-    
+
     // Update attack cooldown timer
     timeSinceLastAttack += deltaTime;
-    
+
     // Check if within attack range
     if (distance <= attackRange && timeSinceLastAttack >= attackCooldown) {
         attack();
@@ -102,29 +97,48 @@ void Zombie::update(float deltaTime, sf::Vector2f playerPosition) {
         // Move towards player if not attacking and not already on player
         if (distance > 5.0f) {
             setState(ZombieState::WALK);
-            
+
             // Normalize direction
             if (distance > 0) {
                 direction /= distance;
             }
-            
+
             // Move towards player
             position.x += direction.x * speed * deltaTime;
             position.y += direction.y * speed * deltaTime;
             sprite.setPosition(position);
-            
+
             // Rotate to face player
             float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
-            sprite.setRotation(angle);
+            sprite.setRotation(angle - 90.0f); // Consistent with Player's downward-facing sprite logic
         }
     }
-    
+
     // Update animation
     updateAnimation(deltaTime);
 }
 
 void Zombie::draw(sf::RenderWindow& window) const {
     window.draw(sprite);
+
+    // Debug: Draw a circle at sprite's reported position (Now removed)
+    // sf::CircleShape posCircle(5.f);
+    // posCircle.setPosition(sprite.getPosition());
+    // posCircle.setOrigin(5.f, 5.f);
+    // posCircle.setFillColor(sf::Color::Blue);
+    // window.draw(posCircle);
+
+    // Debug: Draw hitbox
+    sf::RectangleShape hitboxShape;
+    sf::FloatRect hitbox = getHitbox(); // This is an AABB
+    // To center the AABB shape on the sprite's origin (blue circle)
+    // Correctly position the debug shape using the global coordinates from getHitbox()
+    hitboxShape.setPosition(hitbox.left, hitbox.top);
+    hitboxShape.setSize(sf::Vector2f(hitbox.width, hitbox.height));
+    hitboxShape.setFillColor(sf::Color(255, 0, 255, 70)); // Magenta, semi-transparent
+    hitboxShape.setOutlineColor(sf::Color::Magenta);
+    hitboxShape.setOutlineThickness(1);
+    window.draw(hitboxShape);
 }
 
 sf::FloatRect Zombie::getBounds() const {
@@ -136,8 +150,9 @@ void Zombie::attack() {
         attacking = true;
         currentAttackFrame = 0;
         attackTimer = 0.0f;
+        m_hasDealtDamageInAttack = false; // Reset damage flag at the start of attack
         setState(ZombieState::ATTACK);
-        
+
         if (!attackTextures.empty()) {
             sprite.setTexture(attackTextures[currentAttackFrame]);
         }
@@ -161,7 +176,7 @@ void Zombie::kill() {
         currentDeathFrame = 0;
         deathTimer = 0.0f;
         setState(ZombieState::DEATH);
-        
+
         if (!deathTextures.empty()) {
             sprite.setTexture(deathTextures[currentDeathFrame]);
         }
@@ -180,10 +195,59 @@ float Zombie::getAttackDamage() const {
     return attackDamage;
 }
 
+sf::Vector2f Zombie::getPosition() const {
+    return position;
+}
+
+bool Zombie::isAlive() const {
+    return !dead;
+}
+
+float Zombie::getDamage() const {
+    // Assuming getDamage is intended to return the same as getAttackDamage
+    // If it's meant to be different, this logic should be updated.
+    return attackDamage;
+}
+
+sf::FloatRect Zombie::getHitbox() const {
+    // Define desired hitbox size in *scaled* pixels (these dimensions define a local box)
+    const float desiredScaledWidth = 60.0f;
+    const float desiredScaledHeight = 60.0f;
+    const float zombieScaleFactor = 0.4f; // As defined in the constructor
+
+    // Calculate the equivalent local (unscaled) dimensions for the local box
+    float localBoxWidth = desiredScaledWidth / zombieScaleFactor;
+    float localBoxHeight = desiredScaledHeight / zombieScaleFactor;
+
+    // Create a local hitbox centered around the sprite's origin (0,0 in local origin-adjusted space)
+    sf::FloatRect localBoxDefinition(
+        -localBoxWidth / 2.0f,
+        -localBoxHeight / 2.0f,
+        localBoxWidth,
+        localBoxHeight
+    );
+
+    // Get the AABB of this transformed local box. Its dimensions will be used.
+    sf::FloatRect aabbOfTransformedLocalBox = sprite.getTransform().transformRect(localBoxDefinition);
+
+    // The logical hitbox will be centered at the sprite's current position,
+    // using the width and height of the AABB of the transformed local box.
+    // This creates an AABB hitbox that doesn't rotate with the sprite visually.
+    sf::Vector2f zombieCurrentPosition = sprite.getPosition();
+    sf::FloatRect finalHitbox(
+        zombieCurrentPosition.x - aabbOfTransformedLocalBox.width / 2.0f,
+        zombieCurrentPosition.y - aabbOfTransformedLocalBox.height / 2.0f,
+        aabbOfTransformedLocalBox.width,
+        aabbOfTransformedLocalBox.height
+    );
+
+    // Optional: Log the final hitbox details
+    return finalHitbox;
+}
 void Zombie::setState(ZombieState newState) {
     if (currentState != newState && !dead) {
         currentState = newState;
-        
+
         // Reset animation for the new state
         if (currentState != ZombieState::ATTACK) {
             currentFrame = 0;
@@ -207,20 +271,21 @@ void Zombie::updateAnimation(float deltaTime) {
         }
         return;
     }
-    
+
     if (attacking) {
         // Attack animation
         attackTimer += deltaTime;
         if (attackTimer >= attackFrameTime) {
             attackTimer -= attackFrameTime;
             currentAttackFrame++;
-            
+
             if (currentAttackFrame < attackTextures.size()) {
                 sprite.setTexture(attackTextures[currentAttackFrame]);
             } else {
                 // Attack animation finished
                 attacking = false;
-                
+                m_hasDealtDamageInAttack = false; // Reset damage flag when attack finishes
+
                 // Revert to walk state
                 setState(ZombieState::WALK);
                 if (!walkTextures.empty()) {
@@ -237,6 +302,21 @@ void Zombie::updateAnimation(float deltaTime) {
             if (!walkTextures.empty()) {
                 sprite.setTexture(walkTextures[currentFrame]);
             }
+
         }
     }
+}
+
+// Definition for the new getter method
+bool Zombie::hasDealtDamageInAttack() const {
+    return m_hasDealtDamageInAttack;
+}
+
+// Definition for the new tryDealDamage method
+float Zombie::tryDealDamage() {
+    if (!m_hasDealtDamageInAttack) {
+        m_hasDealtDamageInAttack = true; // Mark that damage has been dealt in this attack
+        return attackDamage; // Return the damage amount
+    }
+    return 0.0f; // Damage already dealt in this attack cycle
 }

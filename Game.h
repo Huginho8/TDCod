@@ -2,6 +2,7 @@
 #define GAME_H
 
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp> // Include for audio
 #include "Player.h"
 #include "LevelManager.h"
 
@@ -9,6 +10,7 @@ class Game {
 public:
     Game();
     void run();
+    sf::RenderWindow& getWindow(); // Added getter for the window
     
     // Added declarations for methods used in Game.cpp
     bool isCollision(const sf::FloatRect& rect1, const sf::FloatRect& rect2);
@@ -42,6 +44,11 @@ private:
     
     // HUD elements
     void drawHUD();
+
+   // Sound effects
+   sf::Music cutsceneMusic;
+   sf::Music backgroundMusic;
+   sf::Music waveStartSound;
 };
 
 #endif // GAME_H

@@ -8,7 +8,7 @@
 enum class PlayerState {
     IDLE,
     WALK,
-    SPRINT, // Activated by holding Shift
+    // SPRINT, // Sprinting will just modify speed, not be a separate animation state for now
     ATTACK,
     DEATH
 };
@@ -18,9 +18,9 @@ public:
     Player();
     
     // Core gameplay methods
-    void update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize);
+    void update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize, sf::Vector2f worldMousePosition);
     void draw(sf::RenderWindow& window);
-    void render(sf::RenderWindow& window) { draw(window); } // Alias for draw
+    void render(sf::RenderWindow& window); // Alias for draw
     void attack();
     void takeDamage(float amount);
     void kill();
@@ -36,6 +36,10 @@ public:
     // State queries
     bool isAttacking() const;
     bool isDead() const;
+
+    // Health getters
+    float getCurrentHealth() const;
+    float getMaxHealth() const;
     
     // Stamina getters
     float getCurrentStamina() const;
@@ -46,33 +50,17 @@ public:
     sf::Sprite& getSprite();
     
     // Can be used to knock player back when hit by enemies
-    void applyKnockback(const sf::Vector2f& direction, float force) {
-        // Temporary implementation for knockback
-        sf::Vector2f newPosition = sprite.getPosition() + direction * force;
-        sprite.setPosition(newPosition);
-    }
+    void applyKnockback(const sf::Vector2f& direction, float force);
     
     // Get attack damage for enemy hit calculations
-    float getAttackDamage() const { return attackDamage; }
+    float getAttackDamage() const;
     
     // Get player hitbox for collision detection
-    sf::FloatRect getHitbox() const {
-        return sprite.getGlobalBounds();
-    }
+    sf::FloatRect getHitbox() const;
+    sf::FloatRect getAttackHitbox() const; // Declaration for attack hitbox
     
     // Reset player to initial state
-    void reset() {
-        health = maxHealth;
-        stamina = maxStamina;
-        dead = false;
-        attacking = false;
-        currentState = PlayerState::IDLE;
-        setPosition(100, 100);
-        
-        if (!idleTextures.empty()) {
-            sprite.setTexture(idleTextures[0]);
-        }
-    }
+    void reset();
 
 private:
     // Animation handling

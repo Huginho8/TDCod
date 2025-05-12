@@ -33,9 +33,15 @@ public:
     float getAttackDamage() const;
     float getDamage() const; // Added getDamage method
     
-    sf::Vectorบุ2f getPosition() const; // Added getPosition method
+    sf::Vector2f getPosition() const; // Added getPosition method
+
+    // Method to attempt to deal damage (returns damage amount and sets flag)
+    float tryDealDamage();
+
+    // Added method to check if the zombie has dealt damage in the current attack
+    bool hasDealtDamageInAttack() const;
     
-private:
+ private:
     sf::Sprite sprite;
     std::vector<sf::Texture> walkTextures;
     std::vector<sf::Texture> attackTextures;
@@ -73,6 +79,9 @@ private:
     void setState(ZombieState newState);
     void updateAnimation(float deltaTime);
     void loadTextures();
+
+    // Flag to track if damage has been dealt in the current attack animation
+    bool m_hasDealtDamageInAttack;
 };
 
 #endif // ZOMBIE_H

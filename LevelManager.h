@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <string>
+#include <optional> // Added for std::optional
 #include "Player.h"
 #include "Zombie.h"
 #include "Doctor.h"
@@ -31,6 +32,8 @@ public:
     void nextLevel();
     void reset();
     
+    // Getter for previousLevel
+    int getPreviousLevel() const;
     GameState getCurrentState() const;
     void setGameState(GameState state);
     
@@ -63,13 +66,15 @@ public:
 private:
     GameState gameState;
     int currentLevel;
+    int previousLevel; // Added previousLevel
     bool tutorialComplete;
     
     // Doctor NPC
-    Doctor doctor;
-    bool doctorSpawned;
+    std::optional<Doctor> doctor;
+    // bool doctorSpawned; // No longer needed, use if(doctor)
     
     // Tutorial specifics
+    bool tutorialZombiesSpawned; // Added flag
     std::vector<std::string> tutorialDialogs;
     int currentDialogIndex;
     sf::Text dialogText;

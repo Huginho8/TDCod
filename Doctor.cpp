@@ -22,7 +22,7 @@ Doctor::Doctor(float x, float y) : position(x, y), currentState(DoctorState::IDL
         sprite.setTexture(idleTextures[0]);
         sf::Vector2u textureSize = idleTextures[0].getSize();
         sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
-        sprite.setScale(0.5f, 0.5f); // Scale doctor to be appropriately sized
+        sprite.setScale(0.4f, 0.4f); // Reduced scale from 0.5f to 0.4f
     }
 }
 
@@ -72,7 +72,7 @@ void Doctor::update(float deltaTime, sf::Vector2f playerPosition) {
         
         // Rotate to face player
         float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
-        sprite.setRotation(angle);
+        sprite.setRotation(angle - 90.0f); // Consistent with Player's downward-facing sprite logic
     } else {
         // Random wandering behavior when idle
         idleTimer += deltaTime;
@@ -116,6 +116,27 @@ void Doctor::update(float deltaTime, sf::Vector2f playerPosition) {
 
 void Doctor::draw(sf::RenderWindow& window) const {
     window.draw(sprite);
+
+    // Debug: Draw a circle at sprite's reported position (Now removed)
+    // sf::CircleShape posCircle(5.f);
+    // posCircle.setPosition(sprite.getPosition());
+    // posCircle.setOrigin(5.f, 5.f);
+    // posCircle.setFillColor(sf::Color::Cyan);
+    // window.draw(posCircle);
+
+    // Debug: Draw hitbox
+    sf::RectangleShape hitboxShape;
+    sf::FloatRect hitbox = getHitbox(); // This is an AABB
+    // To center the AABB shape on the sprite's origin (cyan circle)
+    hitboxShape.setPosition(
+        sprite.getPosition().x - hitbox.width / 2.0f,
+        sprite.getPosition().y - hitbox.height / 2.0f
+    );
+    hitboxShape.setSize(sf::Vector2f(hitbox.width, hitbox.height));
+    hitboxShape.setFillColor(sf::Color(0, 255, 255, 70)); // Cyan, semi-transparent
+    hitboxShape.setOutlineColor(sf::Color::Cyan);
+    hitboxShape.setOutlineThickness(1);
+    window.draw(hitboxShape);
 }
 
 sf::Vector2f Doctor::getPosition() const {
@@ -139,6 +160,27 @@ void Doctor::setState(DoctorState newState) {
             sprite.setTexture(walkTextures[0]);
         }
     }
+}
+
+sf::FloatRect Doctor::getHitbox() const {
+    // Define a desired hitbox size in *scaled* pixels
+    const float desiredScaledWidth = 30.0f;
+    const float desiredScaledHeight = 30.0f;
+
+    // Doctor scale is 0.4f (from constructor)
+    float localHitboxWidth = desiredScaledWidth / 0.4f;  // 30 / 0.4 = 75.0
+    float localHitboxHeight = desiredScaledHeight / 0.4f; // 30 / 0.4 = 75.0
+
+    // Create a local hitbox centered around the sprite's origin (0,0 in local origin-adjusted space)
+    sf::FloatRect localHitbox(
+        -localHitboxWidth / 2.0f,
+        -localHitboxHeight / 2.0f,
+        localHitboxWidth,
+        localHitboxHeight
+    );
+    
+    // Transform this local hitbox to global coordinates
+    return sprite.getTransform().transformRect(localHitbox);
 }
 
 void Doctor::updateAnimation(float deltaTime) {

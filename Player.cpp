@@ -37,7 +37,10 @@ Player::Player() :
     if (!idleTextures.empty()) {
         sprite.setTexture(idleTextures[0]);
         sf::Vector2u textureSize = idleTextures[0].getSize();
-        sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
+        // Adjusting Y origin: if circle is "in front", origin Y might be too large.
+        // Assuming "front" is along the sprite's visual top if it faces down.
+        // Let's try making the Y origin much smaller (higher on the texture).
+        sprite.setOrigin(textureSize.x / 2.0f, textureSize.y * 0.25f);
         sprite.setScale(scaleFactor, scaleFactor);
         sprite.setPosition(100, 100);
     }
@@ -47,7 +50,7 @@ void Player::loadTextures() {
     // Load idle animation textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroIdle/Idle_Knife_0" + std::to_string(i) + ".png";
+        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroIdle/Idle_Knife_00" + std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player idle texture: " << filePath << std::endl;
         }
@@ -57,7 +60,7 @@ void Player::loadTextures() {
     // Load walking animation textures
     for (int i = 0; i < 6; ++i) {
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroWalk/Walk_knife_0" + std::to_string(i) + ".png";
+        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroWalk/Walk_knife_00" + std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player walking texture: " << filePath << std::endl;
         }
@@ -67,7 +70,7 @@ void Player::loadTextures() {
     // Load sprint animation textures (reusing move but will be animated faster)
     for (int i = 0; i < 6; ++i) {
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroWalk/Walk_knife_0" + std::to_string(i) + ".png";
+        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroWalk/Walk_knife_00" + std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player sprint texture: " << filePath << std::endl;
         }
@@ -77,7 +80,7 @@ void Player::loadTextures() {
     // Load attack animation textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroAttack/Knife_0" + std::to_string(i) + ".png";
+        std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroAttack/Knife_00" + std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player attack texture: " << filePath << std::endl;
         }
@@ -87,7 +90,7 @@ void Player::loadTextures() {
     // Load death animation textures
     for (int i = 0; i < 6; ++i) {
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/Hero/HeroDeath/death_00_Man" + std::to_string(i) + ".png";
+        std::string filePath = "TDCod/Assets/Hero/HeroDeath/death_000" + std::to_string(i) + "_Man.png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading player death texture: " << filePath << std::endl;
         }
@@ -135,7 +138,12 @@ bool Player::isDead() const {
 }
 
 bool Player::isSprinting() const {
-    return currentState == PlayerState::SPRINT && stamina > 0;
+    // Sprinting is now determined by Shift key and stamina, not a state.
+    // This method might still be useful for external checks or if we reintroduce sprint state.
+    // For now, let's say you are "trying to sprint" if Shift is pressed.
+    // Actual speed modification will happen in update().
+    bool wantsToSprint = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+    return wantsToSprint && stamina > 0;
 }
 
 float Player::getCurrentStamina() const {
@@ -166,9 +174,16 @@ void Player::setState(PlayerState newState) {
 void Player::updateAnimation(float deltaTime) {
     animationTimer += deltaTime;
     
-    // Animation speed is faster when sprinting
-    float frameTime = (currentState == PlayerState::SPRINT) ? animationFrameTime * 0.7f : animationFrameTime;
+    // Animation speed is faster when sprinting (Shift pressed and moving)
+    // We'll use a flag or direct check in update() for speed, animation will just be WALK or IDLE.
+    // No separate SPRINT animation for now.
+    float frameTime = animationFrameTime; // Default frame time
     
+    // If we wanted faster walk animation when "sprinting":
+    // bool isMovingFast = (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) && (velocity.x != 0 || velocity.y != 0) && stamina > 0;
+    // if (isMovingFast) frameTime *= 0.7f;
+
+
     if (dead) {
         // Death animation
         deathTimer += deltaTime;
@@ -198,21 +213,14 @@ void Player::updateAnimation(float deltaTime) {
                 attacking = false;
                 
                 // Revert to previous state
-                if (velocity.x != 0 || velocity.y != 0) {
-                    if (currentState == PlayerState::SPRINT) {
-                        if (!sprintTextures.empty()) {
-                            sprite.setTexture(sprintTextures[currentFrame]);
-                        }
-                    } else {
-                        if (!walkingTextures.empty()) {
-                            sprite.setTexture(walkingTextures[currentFrame]);
-                        }
-                    }
+                // Attack finished, determine next state based on movement
+                if (velocity.x != 0.0f || velocity.y != 0.0f) {
+                    setState(PlayerState::WALK);
                 } else {
-                    if (!idleTextures.empty()) {
-                        sprite.setTexture(idleTextures[currentFrame]);
-                    }
+                    setState(PlayerState::IDLE);
                 }
+                // The main animation loop will pick up the correct frame for the new state
+                // because setState would have reset currentFrame if the state changed.
             }
         }
     } else if (animationTimer >= frameTime) {
@@ -228,19 +236,13 @@ void Player::updateAnimation(float deltaTime) {
                 break;
                 
             case PlayerState::WALK:
-                currentFrame = (currentFrame + 1) % walkingTextures.size();
                 if (!walkingTextures.empty()) {
+                    currentFrame = (currentFrame + 1) % walkingTextures.size();
                     sprite.setTexture(walkingTextures[currentFrame]);
+                } else {
                 }
                 break;
-                
-            case PlayerState::SPRINT:
-                currentFrame = (currentFrame + 1) % sprintTextures.size();
-                if (!sprintTextures.empty()) {
-                    sprite.setTexture(sprintTextures[currentFrame]);
-                }
-                break;
-                
+            // SPRINT case removed
             default:
                 break;
         }
@@ -248,28 +250,25 @@ void Player::updateAnimation(float deltaTime) {
 }
 
 void Player::updateStamina(float deltaTime) {
-    // Drain stamina when sprinting
-    if (currentState == PlayerState::SPRINT) {
-        stamina = std::max(0.0f, stamina - staminaDrainRate * deltaTime);
-        isStaminaRegenerating = false;
-        timeSinceStaminaUse = 0.0f;
-    } else {
-        // Update timer since last stamina use
+    // All stamina logic (drain and regeneration) has been moved into Player::update()
+    // This function is currently not strictly needed but kept to avoid breaking calls if any.
+    // To re-enable separate regen logic here, uncomment and adjust Player::update().
+
+    // Example of standalone regen logic (if Player::update didn't handle it):
+    /*
+    if (! (sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift)) || stamina <= 0 ) { // Not trying to sprint or out of stamina
         timeSinceStaminaUse += deltaTime;
-        
-        // Begin regenerating after delay
         if (timeSinceStaminaUse >= staminaRegenDelay) {
             isStaminaRegenerating = true;
         }
-        
-        // Regenerate stamina
         if (isStaminaRegenerating) {
             stamina = std::min(maxStamina, stamina + staminaRegenRate * deltaTime);
         }
     }
+    */
 }
 
-void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize) {
+void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize, sf::Vector2f worldMousePosition) {
     if (dead) {
         // Only update death animation if player is dead
         updateAnimation(deltaTime);
@@ -284,14 +283,8 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     velocity.y = 0.0f;
     
     // Check sprint input
-    bool wantToSprint = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
-    
-    // Only allow sprinting if we have stamina
-    if (wantToSprint && stamina > 0) {
-        sprint(true);
-    } else {
-        sprint(false);
-    }
+    bool wantsToSprint = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
+    bool actuallySprinting = false;
     
     // Handle movement only if not attacking
     if (!attacking) {
@@ -318,18 +311,39 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
         
         // Set state based on movement
         if (velocity.x != 0 || velocity.y != 0) {
-            if (isSprinting()) {
-                setState(PlayerState::SPRINT);
+            setState(PlayerState::WALK); // Always WALK state if moving
+            if (wantsToSprint && stamina > 0) {
                 velocity.x *= sprintSpeed;
                 velocity.y *= sprintSpeed;
+                actuallySprinting = true; // For stamina drain
             } else {
-                setState(PlayerState::WALK);
                 velocity.x *= speed;
                 velocity.y *= speed;
             }
+        } else {
+             setState(PlayerState::IDLE); // Ensure idle if not moving
         }
     }
     
+    // Update Stamina Drain / Regen Call
+    if (actuallySprinting) {
+        stamina = std::max(0.0f, stamina - staminaDrainRate * deltaTime);
+        isStaminaRegenerating = false;
+        timeSinceStaminaUse = 0.0f;
+    } else {
+        // This part of stamina logic was originally in updateStamina()
+        timeSinceStaminaUse += deltaTime;
+        if (timeSinceStaminaUse >= staminaRegenDelay) {
+            isStaminaRegenerating = true;
+        }
+        if (isStaminaRegenerating) {
+            stamina = std::min(maxStamina, stamina + staminaRegenRate * deltaTime);
+        }
+    }
+    // The call to updateStamina() below will now primarily handle regeneration
+    // or can be removed if all logic is here. For now, let's keep it simple.
+    // updateStamina(deltaTime); // Original call - review if needed after merging logic
+
     // Update position
     sf::Vector2f newPosition = sprite.getPosition() + velocity * deltaTime;
     
@@ -345,33 +359,45 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     sprite.setPosition(newPosition);
     
     // Rotation to face mouse cursor
-    sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-    sf::Vector2f worldMousePosition = window.mapPixelToCoords(mousePosition);
+    // Rotation to face mouse cursor using the provided world mouse position
     sf::Vector2f playerPosition = sprite.getPosition();
     sf::Vector2f direction = worldMousePosition - playerPosition;
-    
-    float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
-    sprite.setRotation(angle);
+    float distanceToMouse = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+    float minDistanceForRotation = 1.0f; // Minimum distance to update rotation
+
+    float angleToMouseDegrees; // Angle towards the mouse, or current facing if mouse is too close
+
+    if (distanceToMouse > minDistanceForRotation) {
+        angleToMouseDegrees = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
+        sprite.setRotation(angleToMouseDegrees - 90.0f);
+    } else {
+        // Mouse is too close, use current sprite rotation to derive the facing angle
+        // Add 90 because sprite.setRotation had 90 subtracted.
+        angleToMouseDegrees = sprite.getRotation() + 90.0f;
+    }
+    // 'angleToMouseDegrees' is now the effective angle the player is "aiming" or was last aiming.
     
     // Update attack state
     if (attacking) {
-        updateAnimation(deltaTime);
+        // updateAnimation(deltaTime); // This call is redundant, will be called once at the end
         
-        // Calculate attack bounds (in front of the player)
+        // Calculate attack bounds (in front of the player) using angleToMouseDegrees
         sf::Vector2f attackOffset = sf::Vector2f(
-            std::cos(angle * 3.14159265f / 180) * 50,
-            std::sin(angle * 3.14159265f / 180) * 50
+            std::cos(angleToMouseDegrees * 3.14159265f / 180) * 30.0f,
+            std::sin(angleToMouseDegrees * 3.14159265f / 180) * 30.0f
         );
         
+        // Keep the attack box size as 60x60 for now, centered on the new offset
+        float attackBoxSize = 60.0f;
         attackBounds = sf::FloatRect(
-            playerPosition.x + attackOffset.x - 30,
-            playerPosition.y + attackOffset.y - 30,
-            60, 60
+            playerPosition.x + attackOffset.x - (attackBoxSize / 2.0f),
+            playerPosition.y + attackOffset.y - (attackBoxSize / 2.0f),
+            attackBoxSize, attackBoxSize
         );
     }
     
-    // Update stamina
-    updateStamina(deltaTime);
+    // Stamina logic is now fully within Player::update's main body.
+    // No separate call to updateStamina() needed here anymore.
     
     // Update animation
     updateAnimation(deltaTime);
@@ -380,14 +406,35 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
 void Player::draw(sf::RenderWindow& window) {
     window.draw(sprite);
     
+    // Debug: Draw a circle at sprite's reported position (Now removed)
+    // sf::CircleShape posCircle(5.f);
+    // posCircle.setPosition(sprite.getPosition());
+    // posCircle.setOrigin(5.f, 5.f);
+    // posCircle.setFillColor(sf::Color::Yellow);
+    // window.draw(posCircle);
+
+    // Debug: Draw main hitbox (AABB of transformed local box)
+    sf::RectangleShape mainHitboxShape;
+    sf::FloatRect mainHitbox = getHitbox(); // This is an AABB
+    // To center the AABB shape on the sprite's origin (yellow circle)
+    // Correctly position the debug shape using the global coordinates from getHitbox()
+    mainHitboxShape.setPosition(mainHitbox.left, mainHitbox.top);
+    mainHitboxShape.setSize(sf::Vector2f(mainHitbox.width, mainHitbox.height));
+    mainHitboxShape.setFillColor(sf::Color(0, 255, 0, 70)); // Green, semi-transparent
+    mainHitboxShape.setOutlineColor(sf::Color::Green);
+    mainHitboxShape.setOutlineThickness(1);
+    window.draw(mainHitboxShape);
+
     // Debug: Draw attack bounds when attacking
-    // if (attacking) {
-    //     sf::RectangleShape attackRect;
-    //     attackRect.setPosition(attackBounds.left, attackBounds.top);
-    //     attackRect.setSize(sf::Vector2f(attackBounds.width, attackBounds.height));
-    //     attackRect.setFillColor(sf::Color(255, 0, 0, 100));
-    //     window.draw(attackRect);
-    // }
+    if (attacking) {
+        sf::RectangleShape attackRect;
+        attackRect.setPosition(attackBounds.left, attackBounds.top);
+        attackRect.setSize(sf::Vector2f(attackBounds.width, attackBounds.height));
+        attackRect.setFillColor(sf::Color(255, 0, 0, 70)); // Red, semi-transparent
+        attackRect.setOutlineColor(sf::Color::Red);
+        attackRect.setOutlineThickness(1);
+        window.draw(attackRect);
+    }
 }
 
 void Player::setPosition(float x, float y) {
@@ -422,16 +469,38 @@ void Player::render(sf::RenderWindow& window) {
 
 // Return player hitbox for collision detection
 sf::FloatRect Player::getHitbox() const {
-    // Get the sprite's bounds and make the hitbox a bit smaller for better gameplay
-    sf::FloatRect bounds = sprite.getGlobalBounds();
-    float hitboxReduction = 10.0f; // Reduce hitbox size for better gameplay feel
-    
-    return sf::FloatRect(
-        bounds.left + hitboxReduction,
-        bounds.top + hitboxReduction,
-        bounds.width - (2 * hitboxReduction),
-        bounds.height - (2 * hitboxReduction)
+    // Define desired hitbox size in *scaled* pixels (these dimensions define a local box)
+    const float desiredScaledWidth = 60.0f;
+    const float desiredScaledHeight = 60.0f;
+
+    // Calculate the equivalent local (unscaled) dimensions for the local box
+    float localBoxWidth = desiredScaledWidth / scaleFactor;
+    float localBoxHeight = desiredScaledHeight / scaleFactor;
+
+    // Create a local hitbox centered around the sprite's origin (0,0 in local origin-adjusted space)
+    sf::FloatRect localBoxDefinition(
+        -localBoxWidth / 2.0f,
+        -localBoxHeight / 2.0f,
+        localBoxWidth,
+        localBoxHeight
     );
+    
+    // Get the AABB of this transformed local box. Its dimensions will be used.
+    sf::FloatRect aabbOfTransformedLocalBox = sprite.getTransform().transformRect(localBoxDefinition);
+
+    // The logical hitbox will be centered at the sprite's current position,
+    // using the width and height of the AABB of the transformed local box.
+    // This creates an AABB hitbox that doesn't rotate with the sprite visually.
+    sf::Vector2f playerCurrentPosition = sprite.getPosition();
+    sf::FloatRect finalHitbox(
+        playerCurrentPosition.x - aabbOfTransformedLocalBox.width / 2.0f,
+        playerCurrentPosition.y - aabbOfTransformedLocalBox.height / 2.0f,
+        aabbOfTransformedLocalBox.width,
+        aabbOfTransformedLocalBox.height
+    );
+    
+    // Optional: Log the final hitbox details
+    return finalHitbox;
 }
 
 // Return attack hitbox
@@ -460,4 +529,11 @@ void Player::reset() {
     attacking = false;
     currentState = PlayerState::IDLE;
     sprite.setPosition(100, 100);
+}
+float Player::getCurrentHealth() const {
+    return health;
+}
+
+float Player::getMaxHealth() const {
+    return maxHealth;
 }
