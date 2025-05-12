@@ -3,30 +3,45 @@
 
 #include <SFML/Graphics.hpp>
 #include "Player.h"
-#include "Zombie.h" // Include Zombie.h
-#include <vector>
+#include "LevelManager.h"
 
 class Game {
 public:
     Game();
     void run();
-
+    
+    // Added declarations for methods used in Game.cpp
+    bool isCollision(const sf::FloatRect& rect1, const sf::FloatRect& rect2);
+    void addPoints(int amount);
+    int getPoints() const;
+    void reset();
+    
 private:
     sf::RenderWindow window;
     Player player;
-    sf::Sprite mapSprite; // Add map sprite
-    sf::Texture mapTexture; // Add map texture
+    LevelManager levelManager;
+    
+    sf::Sprite mapSprite;
+    sf::Texture mapTexture;
     sf::RectangleShape background;
+    
     int points;
     int zombiesToNextLevel;
     sf::Text pointsText;
+    sf::Font font;
     sf::Clock clock;
-    std::vector<Zombie> zombies; // Add a vector to hold zombies
-
+    sf::View gameView;
+    
     void processInput();
     void update(float deltaTime);
     void render();
-    void spawnZombies(int count); // Declare spawnZombies
+    
+    // Collision detection
+    void checkZombiePlayerCollisions();
+    void checkPlayerBoundaries();
+    
+    // HUD elements
+    void drawHUD();
 };
 
-#endif
+#endif // GAME_H
