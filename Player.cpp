@@ -44,6 +44,22 @@ Player::Player() :
         sprite.setScale(scaleFactor, scaleFactor);
         sprite.setPosition(100, 100);
     }
+
+    // Load sounds
+    if (!knifeAttackBuffer.loadFromFile("TDCod/Assets/Audio/knife.mp3")) {
+        std::cerr << "Error loading knife attack sound!" << std::endl;
+    } else {
+        knifeAttackSound.setBuffer(knifeAttackBuffer);
+        knifeAttackSound.setVolume(50); // Lower knife attack sound volume
+    }
+
+    if (!walkingBuffer.loadFromFile("TDCod/Assets/Audio/walking.mp3")) {
+        std::cerr << "Error loading walking sound!" << std::endl;
+    } else {
+        walkingSound.setBuffer(walkingBuffer);
+        walkingSound.setLoop(true); // Loop the walking sound
+        walkingSound.setVolume(90); // Increase walking sound volume again
+    }
 }
 
 void Player::loadTextures() {
@@ -108,6 +124,7 @@ void Player::sprint(bool isSprinting) {
 void Player::takeDamage(float amount) {
     if (!dead) {
         health -= amount;
+        timeSinceLastDamage = 0.0f; // Reset timer on taking damage
         if (health <= 0) {
             health = 0;
             kill();
@@ -272,9 +289,21 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     if (dead) {
         // Only update death animation if player is dead
         updateAnimation(deltaTime);
+        // Stop walking sound if player dies
+        if (walkingSound.getStatus() == sf::Sound::Playing) {
+            walkingSound.stop();
+        }
         return;
     }
     
+    // Update time since last damage for health regeneration
+    timeSinceLastDamage += deltaTime;
+
+    // Health regeneration logic
+    if (timeSinceLastDamage >= HEALTH_REGEN_DELAY && health < maxHealth) {
+        health = std::min(maxHealth, health + healthRegenRate * deltaTime);
+    }
+
     // Set default state to idle, will be changed if necessary
     setState(PlayerState::IDLE);
     
@@ -286,43 +315,59 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     bool wantsToSprint = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
     bool actuallySprinting = false;
     
-    // Handle movement only if not attacking
+    // Set movement velocity based on keyboard input
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
+        velocity.x = -1.0f;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
+        velocity.x = 1.0f;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
+        velocity.y = -1.0f;
+    }
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
+        velocity.y = 1.0f;
+    }
+    
+    // Normalize diagonal movement
+    if (velocity.x != 0 && velocity.y != 0) {
+        float length = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+        velocity.x /= length;
+        velocity.y /= length;
+    }
+    
+    // Set state based on movement (only change if not attacking to maintain attack animation)
     if (!attacking) {
-        // Set movement velocity based on keyboard input
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-            velocity.x = -1.0f;
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-            velocity.x = 1.0f;
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-            velocity.y = -1.0f;
-        }
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-            velocity.y = 1.0f;
-        }
-        
-        // Normalize diagonal movement
-        if (velocity.x != 0 && velocity.y != 0) {
-            float length = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-            velocity.x /= length;
-            velocity.y /= length;
-        }
-        
-        // Set state based on movement
         if (velocity.x != 0 || velocity.y != 0) {
             setState(PlayerState::WALK); // Always WALK state if moving
-            if (wantsToSprint && stamina > 0) {
-                velocity.x *= sprintSpeed;
-                velocity.y *= sprintSpeed;
-                actuallySprinting = true; // For stamina drain
-            } else {
-                velocity.x *= speed;
-                velocity.y *= speed;
-            }
         } else {
              setState(PlayerState::IDLE); // Ensure idle if not moving
         }
+    }
+
+    // Apply speed based on sprinting and stamina
+    if (velocity.x != 0 || velocity.y != 0) {
+        if (wantsToSprint && stamina > 0) {
+            velocity.x *= sprintSpeed;
+            velocity.y *= sprintSpeed;
+            actuallySprinting = true; // For stamina drain
+            // Adjust walking sound pitch for running
+            walkingSound.setPitch(1.5f); // Speed up the sound
+        } else {
+            velocity.x *= speed;
+            velocity.y *= speed;
+            // Reset walking sound pitch for walking
+            walkingSound.setPitch(1.0f);
+        }
+        // Play walking sound if not already playing and not attacking
+        if (walkingSound.getStatus() != sf::Sound::Playing && !attacking) {
+            walkingSound.play();
+        }
+    } else {
+         // Stop walking sound if not moving
+         if (walkingSound.getStatus() == sf::Sound::Playing) {
+             walkingSound.stop();
+         }
     }
     
     // Update Stamina Drain / Regen Call
@@ -459,6 +504,11 @@ void Player::attack() {
         if (!attackTextures.empty()) {
             sprite.setTexture(attackTextures[currentAttackFrame]);
         }
+
+        // Play knife attack sound
+        // Stop the sound before playing to prevent delay on rapid swings
+        knifeAttackSound.stop();
+        knifeAttackSound.play();
     }
 }
 

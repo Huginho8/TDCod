@@ -43,6 +43,14 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     if (!backgroundMusic.openFromFile("TDCod/Assets/Audio/atmosphere.mp3")) {
         std::cerr << "Error loading background music! Path: TDCod/Assets/Audio/atmosphere.mp3" << std::endl;
         // Optionally set a flag here to indicate loading failure
+    } else {
+        backgroundMusic.setVolume(15); // Lower the volume further
+    }
+
+    if (!zombieBiteBuffer.loadFromFile("TDCod/Assets/Audio/zombiebite.mp3")) {
+        std::cerr << "Error loading zombie bite sound!" << std::endl;
+    } else {
+        zombieBiteSound.setBuffer(zombieBiteBuffer);
     }
 }
 
@@ -182,6 +190,11 @@ void Game::checkZombiePlayerCollisions() {
             if (damageToApply > 0) {
                 player.takeDamage(damageToApply);
                 
+                // Play zombie bite sound
+                if (zombieBiteSound.getStatus() != sf::Sound::Playing) {
+                    zombieBiteSound.play();
+                }
+
                 // Knockback player away from zombie
                 sf::Vector2f direction = player.getPosition() - zombie.getPosition();
                 float magnitude = sqrt(direction.x * direction.x + direction.y * direction.y);

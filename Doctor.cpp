@@ -96,7 +96,7 @@ void Doctor::update(float deltaTime, sf::Vector2f playerPosition) {
         } else if (currentState == DoctorState::WALK) {
             moveTimer += deltaTime;
             
-            if (moveTimer > 2.0f) {
+            if (moveTimer > 5.0f) { // Increased random move duration
                 setState(DoctorState::IDLE);
                 moveTimer = 0.0f;
             } else {

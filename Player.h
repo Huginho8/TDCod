@@ -2,6 +2,7 @@
 #define PLAYER_H
 
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp> // Include for audio
 #include <vector>
 
 // Player states for animation and behavior control
@@ -84,6 +85,11 @@ private:
     float health;
     float maxHealth;
     
+    // Health properties
+    float healthRegenRate = 5.0f; // Health regenerated per second
+    float timeSinceLastDamage = 0.0f;
+    const float HEALTH_REGEN_DELAY = 5.0f; // Delay before health regeneration starts
+
     // Stamina system - used for sprinting (Shift key)
     float stamina;
     float maxStamina;
@@ -118,6 +124,12 @@ private:
     std::vector<sf::Texture> sprintTextures;  // Used when holding Shift
     std::vector<sf::Texture> attackTextures;
     std::vector<sf::Texture> deathTextures;
+
+    // Sound effects
+    sf::SoundBuffer knifeAttackBuffer;
+    sf::Sound knifeAttackSound;
+    sf::SoundBuffer walkingBuffer;
+    sf::Sound walkingSound;
 };
 
 #endif // PLAYER_H

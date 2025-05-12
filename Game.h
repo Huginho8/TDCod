@@ -49,6 +49,8 @@ private:
    sf::Music cutsceneMusic;
    sf::Music backgroundMusic;
    sf::Music waveStartSound;
+   sf::SoundBuffer zombieBiteBuffer;
+   sf::Sound zombieBiteSound;
 };
 
 #endif // GAME_H
