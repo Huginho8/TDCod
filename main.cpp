@@ -1,5 +1,4 @@
 #include "Game.h"
-#include "../Cutscene/scene.h" // Include the cutscene header
 
 int main() {
     Game game;
