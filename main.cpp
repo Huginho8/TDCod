@@ -1,11 +1,13 @@
 #include "Game.h"
+#include "Scene/Cutscene.h" // Corrected include path
 
 int main() {
     Game game;
-    // Run the intro sequence first, using the game's window
-    if (!runIntroSequence(game.getWindow())) {
-        return 0; // Exit if cutscene was closed or didn't complete
-    }
+    TDCod::Cutscene cutscene; // Create Cutscene object
+
+    // Run the cutscene before the game
+    cutscene.run(game.getWindow());
+
     game.run();
     return 0;
 }
