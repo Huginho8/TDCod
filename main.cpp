@@ -1,5 +1,5 @@
 #include "Game.h"
-#include "TDCod/Cutscene/scene.cpp" // Include the cutscene header
+#include "../Cutscene/scene.cpp" // Include the cutscene header
 
 int main() {
     Game game;
