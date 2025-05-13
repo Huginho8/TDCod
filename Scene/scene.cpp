@@ -67,7 +67,7 @@ Cutscene::~Cutscene() {
 
 void Cutscene::init() {
     // Load assets
-    if (!font.loadFromFile("TDCod/Scene/Assets2/Call of Ops Duty.otf")) {
+    if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
         std::cerr << "Error loading font TDCod/Scene/Assets2/Call of Ops Duty.otf" << std::endl;
         // Handle error appropriately, maybe set cutsceneFinished = true
     }
@@ -99,10 +99,17 @@ void Cutscene::init() {
     }
     menuClickSound.setBuffer(menuClickBuffer);
 
+    // Load menu music
     if (!backgroundMusic.openFromFile("TDCod/Scene/Assets2/01 - Damned.mp3")) {
-        std::cerr << "Error loading music TDCod/Scene/Assets2/01 - Damned.mp3" << std::endl;
+        std::cerr << "Error loading menu music TDCod/Scene/Assets2/01 - Damned.mp3" << std::endl;
     }
     backgroundMusic.setLoop(true);
+
+    // Load cutscene music
+    if (!cutsceneMusic.openFromFile("TDCod/Scene/Assets2/cutscene.mp3")) {
+        std::cerr << "Error loading cutscene music TDCod/Scene/Assets2/cutscene.mp3" << std::endl;
+    }
+    cutsceneMusic.setLoop(false); // Cutscene music usually doesn't loop
 
     // Setup dialogue script (adapted to std::vector<std::string> dialogueLines)
     dialogueScript = {
@@ -215,7 +222,8 @@ void Cutscene::run(sf::RenderWindow& window) {
             }
         }
     }
-    backgroundMusic.stop(); // Ensure music is stopped when cutscene ends
+    backgroundMusic.stop(); // Ensure menu music is stopped if it was playing
+    cutsceneMusic.stop(); // Ensure cutscene music is stopped when cutscene ends
 }
 
 void Cutscene::handleEvents(sf::RenderWindow& window) {
@@ -238,7 +246,8 @@ void Cutscene::handleEvents(sf::RenderWindow& window) {
                         currentCharIndex = 0;
                         currentLineComplete = false;
                         dialogueClock.restart();
-                        // backgroundMusic.stop(); // Menu music stops, perhaps different music for cutscene?
+                        backgroundMusic.stop(); // Stop menu music
+                        cutsceneMusic.play(); // Play cutscene music
                         movementClock.restart();
                         animationClock.restart();
                     }

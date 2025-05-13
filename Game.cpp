@@ -19,7 +19,7 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     mapSprite.setTexture(mapTexture);
     
     // Load font
-    if (!font.loadFromFile("Cutscene/Assets/Call of Ops Duty.otf")) {
+    if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
         std::cerr << "Error loading font 'Cutscene/Assets/Call of Ops Duty.otf'! Trying fallback." << std::endl;
         // Fallback to a generic system font name if the primary one fails
         if (!font.loadFromFile("arial.ttf")) { // This is a common system font, but might not exist

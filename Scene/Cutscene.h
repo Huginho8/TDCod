@@ -53,7 +53,8 @@ private:
     sf::Sprite planetSprite;
     sf::Sprite shipSprite;
 
-    sf::Music backgroundMusic; // Renamed from menuMusic for clarity if it's for the whole cutscene
+    sf::Music backgroundMusic; // Music for the menu
+    sf::Music cutsceneMusic; // Music for the cutscene
     sf::SoundBuffer menuButtonBuffer;
     sf::Sound menuButtonSound;
     sf::SoundBuffer menuClickBuffer;

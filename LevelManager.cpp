@@ -25,7 +25,7 @@ LevelManager::LevelManager()
     };
     
     // Load font
-    if (!font.loadFromFile("Cutscene/Assets/Call of Ops Duty.otf")) {
+    if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
         std::cerr << "Error loading font for dialog! Trying fallback." << std::endl;
         // Fallback to a generic system font name if the primary one fails
         if (!font.loadFromFile("arial.ttf")) { // This is a common system font, but might not exist
