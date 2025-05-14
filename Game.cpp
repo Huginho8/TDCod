@@ -4,7 +4,6 @@
 #include <random>
 #include <cmath>
 
-#include <SFML/Audio.hpp>
 Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0), zombiesToNextLevel(15) {
     window.setFramerateLimit(60);
     
@@ -12,17 +11,26 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     background.setFillColor(sf::Color(50, 50, 50));
     background.setSize(sf::Vector2f(1000, 1250)); // Match map size
     
-    // Load map texture
-    if (!mapTexture.loadFromFile("TDCod/Assets/Map/Map1/Map.png")) {
-        std::cerr << "Error loading map texture!" << std::endl;
+    // Load map textures
+    if (!mapTexture1.loadFromFile("TDCod/Assets/Map/Map1/Map.png")) {
+        std::cerr << "Error loading map1 texture!" << std::endl;
     }
-    mapSprite.setTexture(mapTexture);
+    mapSprite1.setTexture(mapTexture1);
+    
+    if (!mapTexture2.loadFromFile("TDCod/Assets/Map/Map2/Map2.png")) {
+        std::cerr << "Error loading map2 texture!" << std::endl;
+    }
+    mapSprite2.setTexture(mapTexture2);
+    
+    if (!mapTexture3.loadFromFile("TDCod/Assets/Map/Map3/Map3.png")) {
+        std::cerr << "Error loading map3 texture!" << std::endl;
+    }
+    mapSprite3.setTexture(mapTexture3);
     
     // Load font
     if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
         std::cerr << "Error loading font 'Cutscene/Assets/Call of Ops Duty.otf'! Trying fallback." << std::endl;
-        // Fallback to a generic system font name if the primary one fails
-        if (!font.loadFromFile("arial.ttf")) { // This is a common system font, but might not exist
+        if (!font.loadFromFile("arial.ttf")) {
             std::cerr << "Error loading fallback font 'arial.ttf' as well!" << std::endl;
         }
     }
@@ -39,12 +47,12 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     
     // Initialize level manager
     levelManager.initialize();
+    
     // Load sounds
     if (!backgroundMusic.openFromFile("TDCod/Assets/Audio/atmosphere.mp3")) {
         std::cerr << "Error loading background music! Path: TDCod/Assets/Audio/atmosphere.mp3" << std::endl;
-        // Optionally set a flag here to indicate loading failure
     } else {
-        backgroundMusic.setVolume(15); // Lower the volume further
+        backgroundMusic.setVolume(15);
     }
 
     if (!zombieBiteBuffer.loadFromFile("TDCod/Assets/Audio/zombiebite.mp3")) {
@@ -67,7 +75,6 @@ void Game::run() {
                 backgroundMusic.play();
             }
         } else {
-            // Stop background music in GAME_OVER or VICTORY states
             if (backgroundMusic.getStatus() == sf::Music::Playing) backgroundMusic.stop();
         }
 
@@ -86,41 +93,31 @@ void Game::processInput() {
             if (event.key.code == sf::Keyboard::Escape)
                 window.close();
             if (event.key.code == sf::Keyboard::Space) {
-                levelManager.advanceDialog(); // Advance tutorial dialog
+                levelManager.advanceDialog();
             }
         }
         
         if (event.type == sf::Event::MouseButtonPressed) {
             if (event.mouseButton.button == sf::Mouse::Left) {
-                player.attack(); // Call the player's attack function
+                player.attack();
             }
         }
     }
 }
 
 void Game::update(float deltaTime) {
-    // Get mouse position in world coordinates
     sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-    sf::Vector2f worldMousePosition = window.mapPixelToCoords(mousePosition, gameView); // Use gameView for mapping
+    sf::Vector2f worldMousePosition = window.mapPixelToCoords(mousePosition, gameView);
 
-    // Update player with window, map size, and world mouse position
-    player.update(deltaTime, window, mapTexture.getSize(), worldMousePosition);
-    
-    // Update level manager
+    player.update(deltaTime, window, mapTexture1.getSize(), worldMousePosition);
     levelManager.update(deltaTime, player);
     
-    
-    // Check for collisions between player and zombies
     checkZombiePlayerCollisions();
-    
-    // Ensure player stays within map boundaries
     checkPlayerBoundaries();
     
-    // Camera follows player
     sf::Vector2f playerPosition = player.getPosition();
     gameView.setCenter(playerPosition);
     
-    // Clamp camera view to map bounds
     float cameraLeft = gameView.getCenter().x - gameView.getSize().x / 2;
     float cameraTop = gameView.getCenter().y - gameView.getSize().y / 2;
     float cameraRight = gameView.getCenter().x + gameView.getSize().x / 2;
@@ -143,33 +140,40 @@ void Game::update(float deltaTime) {
 void Game::render() {
     window.clear();
     
-    // Set the game view for world rendering
     window.setView(gameView);
     
-    // Draw map
-    window.draw(mapSprite);
+    // Draw the appropriate map based on level
+    int currentLevel = levelManager.getCurrentLevel();
+    window.draw(getMapSprite(currentLevel));
     
-    // Draw zombies through level manager
     levelManager.render(window);
-    
-    // Draw player
     player.render(window);
     
-    // Switch to default view for UI elements
     window.setView(window.getDefaultView());
     
-    // Update points text
     pointsText.setString("Points: " + std::to_string(points));
     window.draw(pointsText);
     
-    // Draw level UI (dialogs)
     levelManager.renderUI(window, font);
-    
-    // Draw HUD (health, stamina, etc.)
     levelManager.drawHUD(window, player);
     
-    // Display everything
     window.display();
+}
+
+sf::Sprite& Game::getMapSprite(int level) {
+    switch (level) {
+        case 0: // Tutorial
+        case 1: // Level 1
+        case 4: // Level 4
+        case 5: // Level 5
+            return mapSprite1;
+        case 2: // Level 2
+            return mapSprite2;
+        case 3: // Level 3
+            return mapSprite3;
+        default:
+            return mapSprite1; // Fallback to Map1
+    }
 }
 
 void Game::checkZombiePlayerCollisions() {
@@ -178,24 +182,18 @@ void Game::checkZombiePlayerCollisions() {
     for (auto& zombie : zombies) {
         if (!zombie.isAlive()) continue;
         
-        // Check for player-zombie collision
         sf::FloatRect playerHitbox = player.getHitbox();
         sf::FloatRect zombieHitbox = zombie.getHitbox();
 
         bool pzCollision = isCollision(playerHitbox, zombieHitbox);
-        // Check for player-zombie collision AND if the zombie is currently attacking
         if (pzCollision && zombie.isAttacking()) {
-            // Use tryDealDamage to ensure damage is only applied once per attack animation
             float damageToApply = zombie.tryDealDamage();
             if (damageToApply > 0) {
                 player.takeDamage(damageToApply);
-                
-                // Play zombie bite sound
                 if (zombieBiteSound.getStatus() != sf::Sound::Playing) {
                     zombieBiteSound.play();
                 }
 
-                // Knockback player away from zombie
                 sf::Vector2f direction = player.getPosition() - zombie.getPosition();
                 float magnitude = sqrt(direction.x * direction.x + direction.y * direction.y);
                 if (magnitude > 0) {
@@ -206,23 +204,19 @@ void Game::checkZombiePlayerCollisions() {
             }
         }
         
-        // Check for player attack-zombie collision
         if (player.isAttacking()) {
             sf::FloatRect playerAttackBox = player.getAttackHitbox();
-            // Zombie hitbox already fetched as zombieHitbox
             bool paZCollision = isCollision(playerAttackBox, zombieHitbox);
             if (paZCollision) {
                 zombie.takeDamage(player.getAttackDamage());
                 
-                // If zombie defeated
                 if (!zombie.isAlive()) {
                     points += 10;
                     zombiesToNextLevel--;
                     
-                    // Check for level completion
                     if (zombiesToNextLevel <= 0) {
                         levelManager.nextLevel();
-                        zombiesToNextLevel = 15 + levelManager.getCurrentLevel() * 5; // Increase zombies per level
+                        zombiesToNextLevel = 15 + levelManager.getCurrentLevel() * 5;
                     }
                 }
             }
@@ -232,10 +226,9 @@ void Game::checkZombiePlayerCollisions() {
 
 void Game::checkPlayerBoundaries() {
     sf::Vector2f playerPos = player.getPosition();
-    sf::Vector2u mapSize = mapTexture.getSize();
-    float playerRadius = 20.0f; // Approximate player hitbox radius
+    sf::Vector2u mapSize = mapTexture1.getSize(); // Assume all maps have same size
+    float playerRadius = 20.0f;
     
-    // Constrain player to map boundaries
     if (playerPos.x - playerRadius < 0) {
         player.setPosition(playerRadius, playerPos.y);
     }
@@ -268,6 +261,7 @@ void Game::reset() {
     levelManager.reset();
     player.reset();
 }
+
 sf::RenderWindow& Game::getWindow() {
     return window;
 }
