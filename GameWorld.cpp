@@ -28,7 +28,7 @@ void GameWorld::init() {
     }
 
     // Create player
-    auto p = std::make_unique<Player>(Vec2(400, 300));
+    auto p = std::make_unique<Player>(this, Vec2(400, 300));
     player = p.get(); // Save raw pointer for target assignment
     physics.addBody(&p->getBody(), false);
     entities.push_back(std::move(p));
@@ -42,19 +42,46 @@ void GameWorld::init() {
     }
 }
 
-void GameWorld::update(float dt) {
+void GameWorld::spawnBullet(const Vec2& position, const Vec2& velocity, float mass, int maxPenetrations) {
+    std::unique_ptr<Bullet> bullet = std::make_unique<Bullet>(position, velocity, mass, maxPenetrations);
+    physics.addBody(&bullet->getBody(), false); // Add to physics engine
+    entities.push_back(std::move(bullet));
+}
+
+void GameWorld::update(float dt, sf::RenderWindow& window) {
+    // Handle input only for the player
+    if (player) {
+        player->handleInput(dt, window);
+    }
+
+    // Update all entities
     for (auto& e : entities) {
         if (e->isAlive()) {
             e->update(dt);
         }
     }
+
     physics.update(dt);
 }
 
-void GameWorld::render(GameRender& renderer, sf::RenderWindow& window) {
+
+void GameWorld::render(sf::RenderWindow& window) {
     for (auto& e : entities) {
         if (e->isAlive()) {
-            renderer.draw(*e, window);
+            draw(*e, window);
         }
+    }
+}
+
+void GameWorld::draw(const Entity& entity, sf::RenderWindow& window) {
+    // Example: use getType() to specialize drawing
+    switch (entity.getType()) {
+    case EntityType::Bullet:
+    case EntityType::Enemy:
+    case EntityType::Player:
+    case EntityType::Wall:
+    default:
+        window.draw(entity.getBody().getShape());
+        break;
     }
 }

@@ -19,13 +19,20 @@ void PhysicsWorld::resolveCollisions() {
         for (auto* b : dynamicBodies) {
             if (a == b) continue;
             if (isColliding(a, b)) {
-                resolveDynamicCollision(*a, *b);
+                // Only resolve if neither is a trigger
+                if (!a->isTrigger && !b->isTrigger) {
+                    resolveDynamicCollision(*a, *b);
+                }
                 handleCollision(a->owner, b->owner);
             }
         }
+
         for (auto* s : staticBodies) {
             if (isColliding(a, s)) {
-                resolveStaticCollision(*a, *s);
+                // Only resolve if dynamic body isn't a trigger
+                if (!a->isTrigger && !s->isTrigger) {
+                    resolveStaticCollision(*a, *s);
+                }
                 handleCollision(a->owner, s->owner);
             }
         }

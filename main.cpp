@@ -22,10 +22,10 @@ int main() {
 
         float dt = clock.restart().asSeconds();
 
-        world.update(dt);
+        world.update(dt, window);
 
         window.clear(sf::Color::Black);
-        world.render(renderer, window); // ✅ Updated to pass window
+        world.render(window); // ✅ Updated to pass window
         window.display();
     }
 

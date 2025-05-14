@@ -7,8 +7,6 @@ Entity::Entity(EntityType type, Vec2 position, Vec2 size, bool isStatic, float m
 }
 
 void Entity::update(float dt) {
-    body.update(dt);
-    body.getShape().setPosition(body.position.x, body.position.y);
 }
 
 void Entity::render(sf::RenderWindow& window) {
@@ -16,11 +14,6 @@ void Entity::render(sf::RenderWindow& window) {
 }
 
 void Entity::onCollision(Entity* other) {
-    // Example: bullets destroy on hit, enemies react to bullets
-    if (type == EntityType::Bullet && other->getType() == EntityType::Enemy) {
-        other->getBody().velocity += body.velocity * 0.5f; // push enemy
-        destroy(); // bullet vanishes
-    }
 }
 
 PhysicsBody& Entity::getBody() {
