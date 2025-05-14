@@ -1,7 +1,7 @@
 #include "Zombie.h"
 
 Zombie::Zombie(Vec2 position, float speed)
-    : Entity(EntityType::Enemy, position, Vec2(32, 32), false, 1.0f, true), target(nullptr), speed(speed) {
+    : Entity(EntityType::Enemy, position, Vec2(32, 32), false, 3.0f, true), target(nullptr), speed(speed) {
     body.getShape().setFillColor(sf::Color::Green);
     getBody().isCircle = true;
 }

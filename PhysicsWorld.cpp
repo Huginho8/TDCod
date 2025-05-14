@@ -16,10 +16,13 @@ void PhysicsWorld::update(float dt) {
 
 void PhysicsWorld::resolveCollisions() {
     for (auto* a : dynamicBodies) {
+        // Skip dead entities
+        if (!a->owner || !a->owner->isAlive()) continue;
+
         for (auto* b : dynamicBodies) {
-            if (a == b) continue;
+            if (a == b || !b->owner || !b->owner->isAlive()) continue;
+
             if (isColliding(a, b)) {
-                // Only resolve if neither is a trigger
                 if (!a->isTrigger && !b->isTrigger) {
                     resolveDynamicCollision(*a, *b);
                 }
@@ -28,8 +31,9 @@ void PhysicsWorld::resolveCollisions() {
         }
 
         for (auto* s : staticBodies) {
+            if (!s->owner || !s->owner->isAlive()) continue;
+
             if (isColliding(a, s)) {
-                // Only resolve if dynamic body isn't a trigger
                 if (!a->isTrigger && !s->isTrigger) {
                     resolveStaticCollision(*a, *s);
                 }
@@ -92,11 +96,11 @@ void PhysicsWorld::resolveDynamicCollision(PhysicsBody& a, PhysicsBody& b) {
     // Coefficient of restitution (e) for elastic collisions
     float e = 0.2f;
 
-    // Calculate the inverse masses
+    // Calculate the inverse masses (mass scaling)
     float invMassA = a.isStatic ? 0.f : 1.f / a.mass;
     float invMassB = b.isStatic ? 0.f : 1.f / b.mass;
 
-    // Calculate the impulse magnitude
+    // Calculate the impulse magnitude (scaled by inverse mass)
     float j = -(1 + e) * relativeVelocity / (invMassA + invMassB);
 
     // Calculate the impulse vector
@@ -106,7 +110,7 @@ void PhysicsWorld::resolveDynamicCollision(PhysicsBody& a, PhysicsBody& b) {
     if (!a.isStatic) a.velocity -= impulse * invMassA;
     if (!b.isStatic) b.velocity += impulse * invMassB;
 
-    // Positional correction
+    // Positional correction (optional)
     const float percent = 0.8f; // usually 20% to 80%
     const float slop = 0.01f;   // small value to prevent jitter
 
@@ -121,6 +125,7 @@ void PhysicsWorld::resolveDynamicCollision(PhysicsBody& a, PhysicsBody& b) {
         if (!b.isStatic) b.position += correction * invMassB;
     }
 }
+
 
 
 void PhysicsWorld::resolveStaticCollision(PhysicsBody& a, PhysicsBody& b) {

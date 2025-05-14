@@ -27,6 +27,4 @@ protected:
     EntityType type;
     PhysicsBody body;
     bool alive = true;
-
-
 };

@@ -22,11 +22,19 @@ void Bullet::onCollision(Entity* other) {
     EntityType targetType = other->getType();
 
     if (targetType == EntityType::Enemy) {
-        // Avoid multiple hits on same entity
+        // Avoid multiple hits on the same entity
         if (hitEntities.count(other)) return;
 
         hitEntities.insert(other);
-        other->getBody().externalImpulse += body.velocity * 0.5f; // push
+
+        // Calculate the mass ratio between the bullet and the enemy
+        float bulletMass = body.mass;
+        float enemyMass = other->getBody().mass;
+
+        // Apply pushback scaled by mass ratio
+        float pushbackFactor = bulletMass / (bulletMass + enemyMass);  // Small pushback for heavy enemies, bigger for light enemies
+        other->getBody().externalImpulse += body.velocity * 0.5f * pushbackFactor;
+
         remainingPenetrations--;
     }
     else if (targetType == EntityType::Wall) {
