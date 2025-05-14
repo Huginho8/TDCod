@@ -1,5 +1,4 @@
 #include "GameWorld.h"
-#include "GameRender.h"
 
 void GameWorld::init() {
     float thickness = 50;

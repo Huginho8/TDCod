@@ -1,13 +1,11 @@
 ﻿#include <SFML/Graphics.hpp>
 #include "GameWorld.h"
-#include "GameRender.h"
 
 int main() {
     sf::RenderWindow window(sf::VideoMode(800, 600), "Zombie Chase Game");
     window.setFramerateLimit(60);
 
     GameWorld world;
-    GameRender renderer;
 
     world.init();
 
