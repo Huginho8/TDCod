@@ -552,9 +552,15 @@ void LevelManager::updateZombies(float deltaTime, const Player& player) {
     auto it = zombies.begin();
     while (it != zombies.end()) {
         bool erased = false;
-        if (player.isAttacking() && player.getAttackBounds().intersects((*it)->getHitbox())) {
+        if ((*it)->isDead()) {
+            physicsWorld->removeBody(&(*it)->getBody()); // Remove physics body before erasing entity
+            it = zombies.erase(it);
+            erased = true;
+            zombiesKilledInRound++;
+        } else if (player.isAttacking() && player.getAttackBounds().intersects((*it)->getHitbox())) {
             (*it)->takeDamage(player.getAttackDamage());
             if ((*it)->isDead()) {
+                physicsWorld->removeBody(&(*it)->getBody()); // Remove physics body before erasing entity
                 it = zombies.erase(it);
                 erased = true;
                 zombiesKilledInRound++;

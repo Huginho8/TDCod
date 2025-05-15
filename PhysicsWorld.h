@@ -10,6 +10,7 @@ public:
     std::vector<PhysicsBody*> staticBodies;
 
     void addBody(PhysicsBody* body, bool isStatic);
+    void removeBody(PhysicsBody* body);
     void update(float dt);
 
 private:

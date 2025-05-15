@@ -6,6 +6,22 @@ void PhysicsWorld::addBody(PhysicsBody* body, bool isStatic) {
     (isStatic ? staticBodies : dynamicBodies).push_back(body);
 }
 
+void PhysicsWorld::removeBody(PhysicsBody* body) {
+    // Remove from dynamic bodies
+    auto it_dynamic = std::remove(dynamicBodies.begin(), dynamicBodies.end(), body);
+    if (it_dynamic != dynamicBodies.end()) {
+        dynamicBodies.erase(it_dynamic, dynamicBodies.end());
+        return;
+    }
+
+    // Remove from static bodies
+    auto it_static = std::remove(staticBodies.begin(), staticBodies.end(), body);
+    if (it_static != staticBodies.end()) {
+        staticBodies.erase(it_static, staticBodies.end());
+        return;
+    }
+}
+
 void PhysicsWorld::update(float dt) {
     for (auto* body : dynamicBodies) {
         body->applyDamping(0.1f * dt);

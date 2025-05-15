@@ -197,11 +197,11 @@ void BaseZombie::updateAnimation(float deltaTime) {
         deathTimer += deltaTime;
         if (deathTimer >= deathFrameTime) {
             deathTimer -= deathFrameTime;
-            if (currentDeathFrame < deathTextures.size() - 1) {
-                currentDeathFrame++;
-                if (!deathTextures.empty()) {
-                    sprite.setTexture(deathTextures[currentDeathFrame]);
+            if (!deathTextures.empty() && currentDeathFrame < deathTextures.size()) {
+                if(currentDeathFrame < deathTextures.size() - 1){
+                    currentDeathFrame++;
                 }
+                sprite.setTexture(deathTextures[currentDeathFrame]);
             }
         }
         return;
