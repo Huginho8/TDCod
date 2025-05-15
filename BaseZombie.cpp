@@ -27,62 +27,60 @@ BaseZombie::BaseZombie(float x, float y, float health, float attackDamage, float
 }
 
 void BaseZombie::update(float deltaTime, sf::Vector2f playerPosition) {
-    // Don't update if dead (except for death animation)
     if (dead) {
         updateAnimation(deltaTime);
         return;
     }
 
-    // Calculate direction and distance to player
     sf::Vector2f direction = playerPosition - position;
     float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
 
-    // Update attack cooldown timer
     timeSinceLastAttack += deltaTime;
 
-    // Check if within attack range
     if (distance <= attackRange && timeSinceLastAttack >= attackCooldown) {
         attack();
         timeSinceLastAttack = 0.0f;
     } else if (!attacking) {
-        // Move towards player if not attacking and not already on player
         if (distance > 5.0f) {
             setState(ZombieState::WALK);
 
-            // Normalize direction
             if (distance > 0) {
                 direction /= distance;
             }
 
-            // Move towards player
             position.x += direction.x * speed * deltaTime;
             position.y += direction.y * speed * deltaTime;
             sprite.setPosition(position);
 
-            // Rotate to face player
             float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
             sprite.setRotation(angle - 90.0f);
         }
     }
 
-    // Update animation
     updateAnimation(deltaTime);
 }
 
 void BaseZombie::draw(sf::RenderWindow& window) const {
     window.draw(sprite);
 
-    // Debug hitbox visualization - uncomment if needed for debugging
-    /*
-    sf::RectangleShape hitboxShape;
-    sf::FloatRect hitbox = getHitbox();
-    hitboxShape.setPosition(hitbox.left, hitbox.top);
-    hitboxShape.setSize(sf::Vector2f(hitbox.width, hitbox.height));
-    hitboxShape.setFillColor(sf::Color(255, 0, 255, 70));
-    hitboxShape.setOutlineColor(sf::Color::Magenta);
-    hitboxShape.setOutlineThickness(1);
-    window.draw(hitboxShape);
-    */
+    if (!dead) {
+        float barWidth = 50.0f;
+        float barHeight = 5.0f;
+        sf::RectangleShape healthBarBackground;
+        healthBarBackground.setSize(sf::Vector2f(barWidth, barHeight));
+        healthBarBackground.setFillColor(sf::Color(100, 100, 100, 150));
+        healthBarBackground.setPosition(position.x - barWidth / 2, position.y - 50);
+
+        sf::RectangleShape healthBar;
+        float healthPercent = health / maxHealth;
+        if (healthPercent < 0) healthPercent = 0;
+        healthBar.setSize(sf::Vector2f(barWidth * healthPercent, barHeight));
+        healthBar.setFillColor(sf::Color::Red);
+        healthBar.setPosition(position.x - barWidth / 2, position.y - 50);
+
+        window.draw(healthBarBackground);
+        window.draw(healthBar);
+    }
 }
 
 sf::FloatRect BaseZombie::getBounds() const {
@@ -148,16 +146,13 @@ sf::Vector2f BaseZombie::getPosition() const {
 }
 
 sf::FloatRect BaseZombie::getHitbox() const {
-    // Define desired hitbox size in scaled pixels
     const float desiredScaledWidth = 60.0f;
     const float desiredScaledHeight = 60.0f;
     const float zombieScaleFactor = 0.4f;
 
-    // Calculate the equivalent local (unscaled) dimensions
     float localBoxWidth = desiredScaledWidth / zombieScaleFactor;
     float localBoxHeight = desiredScaledHeight / zombieScaleFactor;
 
-    // Create a local hitbox centered around the sprite's origin
     sf::FloatRect localBoxDefinition(
         -localBoxWidth / 2.0f,
         -localBoxHeight / 2.0f,
@@ -165,10 +160,8 @@ sf::FloatRect BaseZombie::getHitbox() const {
         localBoxHeight
     );
 
-    // Get the AABB of this transformed local box
     sf::FloatRect aabbOfTransformedLocalBox = sprite.getTransform().transformRect(localBoxDefinition);
 
-    // Create an AABB hitbox centered at the sprite's position
     sf::Vector2f zombieCurrentPosition = sprite.getPosition();
     sf::FloatRect finalHitbox(
         zombieCurrentPosition.x - aabbOfTransformedLocalBox.width / 2.0f,
@@ -184,7 +177,6 @@ void BaseZombie::setState(ZombieState newState) {
     if (currentState != newState && !dead) {
         currentState = newState;
 
-        // Reset animation for the new state
         if (currentState != ZombieState::ATTACK) {
             currentFrame = 0;
             animationTimer = 0.0f;
@@ -194,7 +186,6 @@ void BaseZombie::setState(ZombieState newState) {
 
 void BaseZombie::updateAnimation(float deltaTime) {
     if (dead) {
-        // Death animation
         deathTimer += deltaTime;
         if (deathTimer >= deathFrameTime) {
             deathTimer -= deathFrameTime;
@@ -209,7 +200,6 @@ void BaseZombie::updateAnimation(float deltaTime) {
     }
 
     if (attacking) {
-        // Attack animation
         attackTimer += deltaTime;
         if (attackTimer >= attackFrameTime) {
             attackTimer -= attackFrameTime;
@@ -218,11 +208,8 @@ void BaseZombie::updateAnimation(float deltaTime) {
             if (currentAttackFrame < attackTextures.size()) {
                 sprite.setTexture(attackTextures[currentAttackFrame]);
             } else {
-                // Attack animation finished
                 attacking = false;
                 m_hasDealtDamageInAttack = false;
-
-                // Revert to walk state
                 setState(ZombieState::WALK);
                 if (!walkTextures.empty()) {
                     sprite.setTexture(walkTextures[currentFrame]);
@@ -230,7 +217,6 @@ void BaseZombie::updateAnimation(float deltaTime) {
             }
         }
     } else {
-        // Walk animation
         animationTimer += deltaTime;
         if (animationTimer >= animationFrameTime) {
             animationTimer -= animationFrameTime;

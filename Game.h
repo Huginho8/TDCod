@@ -17,17 +17,17 @@ public:
     int getPoints() const;
     void reset();
     
-    // Added to select map sprite based on level
     sf::Sprite& getMapSprite(int level);
+    sf::Vector2u getMapSize(int level); // Added to get map size dynamically
 
 private:
     sf::RenderWindow window;
     Player player;
     LevelManager levelManager;
     
-    sf::Sprite mapSprite1; // Map for Tutorial, Level 1, Level 4, Level 5
-    sf::Sprite mapSprite2; // Map for Level 2
-    sf::Sprite mapSprite3; // Map for Level 3
+    sf::Sprite mapSprite1;
+    sf::Sprite mapSprite2;
+    sf::Sprite mapSprite3;
     sf::Texture mapTexture1;
     sf::Texture mapTexture2;
     sf::Texture mapTexture3;

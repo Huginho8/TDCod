@@ -13,4 +13,4 @@ protected:
     void loadTextures() override;
 };
 
-#endif // ZOMBIE_WALKER_H
+#endif

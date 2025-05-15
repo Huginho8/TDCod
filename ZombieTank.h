@@ -13,4 +13,4 @@ protected:
     void loadTextures() override;
 };
 
-#endif // ZOMBIE_TANK_H
+#endif
