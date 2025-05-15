@@ -30,12 +30,10 @@ public:
     sf::FloatRect getBounds() const;
     sf::FloatRect getHitbox() const;
     
-    // Zombie actions
     virtual void attack();
     virtual void takeDamage(float amount);
     virtual void kill();
     
-    // Zombie state checks
     bool isAttacking() const;
     bool isDead() const;
     bool isAlive() const;
@@ -46,7 +44,6 @@ public:
     float tryDealDamage();
     bool hasDealtDamageInAttack() const;
     
-    // Get the zombie type
     virtual ZombieType getType() const = 0;
     
 protected:
@@ -63,7 +60,6 @@ protected:
     sf::Vector2f position;
     float speed;
     
-    // Attack properties
     bool attacking;
     int currentAttackFrame;
     float attackTimer;
@@ -73,27 +69,22 @@ protected:
     float attackDamage;
     float attackRange;
     
-    // Death properties
     bool dead;
     int currentDeathFrame;
     float deathTimer;
     float deathFrameTime;
     
-    // Health
     float health;
     float maxHealth;
     
-    // Helper methods
     virtual void setState(ZombieState newState);
     virtual void updateAnimation(float deltaTime);
     virtual void loadTextures() = 0;
     
-    // Flag to track if damage has been dealt in the current attack animation
     bool m_hasDealtDamageInAttack;
     
-    // Helper to load textures with a given path and pattern
     void loadTextureSet(std::vector<sf::Texture>& textures, const std::string& basePath, 
                         const std::string& prefix, int count, bool isBoss = false);
 };
 
-#endif // BASE_ZOMBIE_H
+#endif

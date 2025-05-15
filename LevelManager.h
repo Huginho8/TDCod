@@ -57,7 +57,7 @@ public:
     void loadLevel(int levelNumber);
     int getCurrentLevel() const;
     int getCurrentRound() const;
-    int getTotalRoundsForLevel(int level) const; // Added declaration
+    int getTotalRoundsForLevel(int level) const;
 
     void spawnDoctor(float x, float y);
     void drawDoctor(sf::RenderWindow& window);
@@ -73,13 +73,15 @@ public:
     void showTutorialDialog(sf::RenderWindow& window);
     void advanceDialog();
     
+    sf::Vector2f getMapSize() const;
+
 private:
     GameState gameState;
     int currentLevel;
     int previousLevel;
     int currentRound;
     bool tutorialComplete;
-    bool pendingLevelTransition = false; // Added flag
+    bool pendingLevelTransition = false;
     
     std::optional<Doctor> doctor;
     bool tutorialZombiesSpawned;
@@ -90,24 +92,21 @@ private:
     sf::RectangleShape dialogBox;
     bool showingDialog;
 
-    std::vector<std::unique_ptr<BaseZombie>> zombies; // Active zombies in the game world
-    std::vector<std::unique_ptr<BaseZombie>> zombiesToSpawn; // Zombies waiting to be spawned
+    std::vector<std::unique_ptr<BaseZombie>> zombies;
+    std::vector<std::unique_ptr<BaseZombie>> zombiesToSpawn;
 
     int totalZombiesInRound;
     int zombiesSpawnedInRound;
     int zombiesKilledInRound;
     float zombieSpawnTimer;
     float zombieSpawnInterval;
-    bool roundStarted; // Added flag to indicate if a round has started
+    bool roundStarted;
 
     sf::RectangleShape mapBounds;
-    const sf::Vector2f MAP_SIZE{1000.f, 1250.f};
     
-    // Round transition
     float roundTransitionTimer;
     bool inRoundTransition;
     
-    // Level Transition
     float levelTransitionTimer;
     float levelTransitionDuration;
     bool levelTransitioning;
@@ -117,12 +116,11 @@ private:
     sf::Sound levelStartSound;
     sf::SoundBuffer levelStartBuffer;
     
-    int getZombieCountForLevel(int level, int round); // Updated signature
+    int getZombieCountForLevel(int level, int round);
     
 public:
     bool isLevelTransitionPending() const { return pendingLevelTransition; }
     void clearLevelTransitionPending() { pendingLevelTransition = false; }
-    bool isLevelTransitioning() const { return levelTransitioning; } // Added getter for levelTransitioning
+    bool isLevelTransitioning() const { return levelTransitioning; }
 };
-
-#endif // LEVELMANAGER_H
+#endif

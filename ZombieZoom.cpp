@@ -5,7 +5,6 @@ ZombieZoom::ZombieZoom(float x, float y)
     : BaseZombie(x, y, 25.0f, 6.0f, 90.0f, 35.0f, 1.5f) {
     loadTextures();
     
-    // Set initial texture to walk
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
         sf::Vector2u textureSize = walkTextures[0].getSize();
@@ -16,7 +15,6 @@ ZombieZoom::ZombieZoom(float x, float y)
 }
 
 void ZombieZoom::loadTextures() {
-    // Load walk animation textures
     for (int i = 0; i < 9; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieZoom/Walk/Walk_00";
@@ -27,7 +25,6 @@ void ZombieZoom::loadTextures() {
         walkTextures.push_back(texture);
     }
 
-    // Load attack animation textures
     for (int i = 0; i < 9; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieZoom/Attack/Attack_00";
@@ -38,7 +35,6 @@ void ZombieZoom::loadTextures() {
         attackTextures.push_back(texture);
     }
 
-    // Load death animation textures
     for (int i = 0; i < 6; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieZoom/Death/Death_00";

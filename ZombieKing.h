@@ -24,4 +24,4 @@ private:
     float timeSinceLastSpecialAttack;
 };
 
-#endif // ZOMBIE_KING_H
+#endif
