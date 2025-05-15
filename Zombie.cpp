@@ -96,7 +96,7 @@ void Zombie::update(float deltaTime, sf::Vector2f playerPosition) {
     } else if (!attacking) {
         // Move towards player if not attacking and not already on player
         if (distance > 5.0f) {
-            setState(ZombieState::WALK);
+            setState(ZombieState::WALK); // Assuming setState handles the state change and animation reset
 
             // Normalize direction
             if (distance > 0) {
@@ -151,7 +151,7 @@ void Zombie::attack() {
         currentAttackFrame = 0;
         attackTimer = 0.0f;
         m_hasDealtDamageInAttack = false; // Reset damage flag at the start of attack
-        setState(ZombieState::ATTACK);
+        setState(ZombieState::ATTACK); // Assuming setState handles the state change and animation reset
 
         if (!attackTextures.empty()) {
             sprite.setTexture(attackTextures[currentAttackFrame]);
@@ -175,7 +175,7 @@ void Zombie::kill() {
         attacking = false;
         currentDeathFrame = 0;
         deathTimer = 0.0f;
-        setState(ZombieState::DEATH);
+        setState(ZombieState::DEATH); // Assuming setState handles the state change and animation reset
 
         if (!deathTextures.empty()) {
             sprite.setTexture(deathTextures[currentDeathFrame]);
@@ -287,7 +287,7 @@ void Zombie::updateAnimation(float deltaTime) {
                 m_hasDealtDamageInAttack = false; // Reset damage flag when attack finishes
 
                 // Revert to walk state
-                setState(ZombieState::WALK);
+                setState(ZombieState::WALK); // Assuming setState handles the state change and animation reset
                 if (!walkTextures.empty()) {
                     sprite.setTexture(walkTextures[currentFrame]);
                 }

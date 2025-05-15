@@ -1,5 +1,7 @@
+#include <math.h>
 #include "ZombieKing.h"
 #include <iostream>
+#include <cmath>
 
 ZombieKing::ZombieKing(float x, float y)
     : BaseZombie(x, y, 200.0f, 20.0f, 20.0f, 50.0f, 2.5f),
@@ -92,7 +94,7 @@ void ZombieKing::attack() {
 
 void ZombieKing::loadTextures() {
     // Load walk animation textures
-    for (int i = 0; i < 9; ++i) {
+    for (int i = 0; i < 8; ++i) { // Changed from 9 to 8
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieKing/Walk/Walk_00";
         filePath += std::to_string(i) + ".png";
@@ -103,9 +105,11 @@ void ZombieKing::loadTextures() {
     }
 
     // Load regular attack animation textures
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 10; ++i) { // Changed from 16 to 10
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/ZombieKing/Attack1/attack1_00";
+        std::string filePath = "TDCod/Assets/ZombieKing/Attack1/attack1_";
+        if (i < 10) filePath += "00"; // Add two leading zeros for 0-9
+        else filePath += "0"; // Add one leading zero for 10-15
         filePath += std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading zombie king attack texture: " << filePath << std::endl;
@@ -114,7 +118,7 @@ void ZombieKing::loadTextures() {
     }
 
     // Load special attack animation textures
-    for (int i = 0; i < 9; ++i) {
+    for (int i = 0; i < 9; ++i) { // This loop seems correct based on the previous listing
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieKing/Attack2/Attack4_00";
         filePath += std::to_string(i) + ".png";
@@ -125,9 +129,12 @@ void ZombieKing::loadTextures() {
     }
 
     // Load death animation textures
-    for (int i = 0; i < 17; ++i) {
+    for (int i = 0; i < 15; ++i) { // Changed from 17 to 15
+        if (i == 1 || i == 5) continue; // Skip missing frames
         sf::Texture texture;
-        std::string filePath = "TDCod/Assets/ZombieKing/Death/Death_00";
+        std::string filePath = "TDCod/Assets/ZombieKing/Death/Death_";
+        if (i < 10) filePath += "00"; // Add two leading zeros for 0-9
+        else filePath += "0"; // Add one leading zero for 10-14
         filePath += std::to_string(i) + ".png";
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading zombie king death texture: " << filePath << std::endl;

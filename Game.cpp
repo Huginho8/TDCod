@@ -12,7 +12,7 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     background.setSize(sf::Vector2f(1000, 1250)); // Match map size
     
     // Load map textures
-    if (!mapTexture1.loadFromFile("TDCod/Assets/Map/Map1/Map.png")) {
+    if (!mapTexture1.loadFromFile("TDCod/Assets/Map.png")) {
         std::cerr << "Error loading map1 texture!" << std::endl;
     }
     mapSprite1.setTexture(mapTexture1);
@@ -29,11 +29,8 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     
     // Load font
     if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
-        std::cerr << "Error loading font 'Cutscene/Assets/Call of Ops Duty.otf'! Trying fallback." << std::endl;
-        if (!font.loadFromFile("arial.ttf")) {
-            std::cerr << "Error loading fallback font 'arial.ttf' as well!" << std::endl;
+        std::cerr << "Error loading font 'TDCod/Assets/Call of Ops Duty.otf'! Trying fallback." << std::endl;
         }
-    }
     
     // Setup points text
     pointsText.setFont(font);
@@ -66,6 +63,13 @@ void Game::run() {
     while (window.isOpen()) {
         processInput();
         float deltaTime = clock.restart().asSeconds();
+
+        // Check for pending level transition
+        if (levelManager.isLevelTransitionPending()) {
+            levelManager.loadLevel(levelManager.getCurrentLevel() + 1);
+            levelManager.setGameState(GameState::LEVEL1); // Set to LEVEL1 after tutorial
+            levelManager.clearLevelTransitionPending();
+        }
 
         // Manage background music based on game state
         GameState currentState = levelManager.getCurrentState();
@@ -141,22 +145,25 @@ void Game::render() {
     window.clear();
     
     window.setView(gameView);
-    
-    // Draw the appropriate map based on level
-    int currentLevel = levelManager.getCurrentLevel();
-    window.draw(getMapSprite(currentLevel));
-    
-    levelManager.render(window);
-    player.render(window);
-    
+
+    // Only draw game world elements if not in a level transition
+    if (!levelManager.isLevelTransitioning()) {
+        // Draw the appropriate map based on level
+        int currentLevel = levelManager.getCurrentLevel();
+        window.draw(getMapSprite(currentLevel));
+
+        levelManager.render(window); // Draws zombies and doctor
+        player.render(window);
+    }
+
     window.setView(window.getDefaultView());
-    
+
     pointsText.setString("Points: " + std::to_string(points));
     window.draw(pointsText);
-    
-    levelManager.renderUI(window, font);
-    levelManager.drawHUD(window, player);
-    
+
+    levelManager.renderUI(window, font); // Draws tutorial dialog and level transition elements
+    levelManager.drawHUD(window, player); // Draws HUD elements (health, stamina, counters)
+
     window.display();
 }
 
@@ -177,24 +184,28 @@ sf::Sprite& Game::getMapSprite(int level) {
 }
 
 void Game::checkZombiePlayerCollisions() {
-    std::vector<Zombie>& zombies = levelManager.getZombies();
+    std::vector<std::unique_ptr<BaseZombie>>& zombies = levelManager.getZombies();
     
-    for (auto& zombie : zombies) {
-        if (!zombie.isAlive()) continue;
-        
+    // Use an iterator to safely remove elements while iterating
+    for (auto it = zombies.begin(); it != zombies.end(); ) {
+        if (!(*it)->isAlive()) {
+            it = zombies.erase(it); // Erase the zombie and update the iterator
+            continue; // Skip the rest of the loop for this zombie
+        }
+
         sf::FloatRect playerHitbox = player.getHitbox();
-        sf::FloatRect zombieHitbox = zombie.getHitbox();
+        sf::FloatRect zombieHitbox = (*it)->getHitbox();
 
         bool pzCollision = isCollision(playerHitbox, zombieHitbox);
-        if (pzCollision && zombie.isAttacking()) {
-            float damageToApply = zombie.tryDealDamage();
+        if (pzCollision && (*it)->isAttacking()) {
+            float damageToApply = (*it)->tryDealDamage();
             if (damageToApply > 0) {
                 player.takeDamage(damageToApply);
                 if (zombieBiteSound.getStatus() != sf::Sound::Playing) {
                     zombieBiteSound.play();
                 }
 
-                sf::Vector2f direction = player.getPosition() - zombie.getPosition();
+                sf::Vector2f direction = player.getPosition() - (*it)->getPosition();
                 float magnitude = sqrt(direction.x * direction.x + direction.y * direction.y);
                 if (magnitude > 0) {
                     direction.x /= magnitude;
@@ -208,19 +219,22 @@ void Game::checkZombiePlayerCollisions() {
             sf::FloatRect playerAttackBox = player.getAttackHitbox();
             bool paZCollision = isCollision(playerAttackBox, zombieHitbox);
             if (paZCollision) {
-                zombie.takeDamage(player.getAttackDamage());
+                (*it)->takeDamage(player.getAttackDamage());
                 
-                if (!zombie.isAlive()) {
+                if (!(*it)->isAlive()) {
                     points += 10;
                     zombiesToNextLevel--;
                     
                     if (zombiesToNextLevel <= 0) {
                         levelManager.nextLevel();
-                        zombiesToNextLevel = 15 + levelManager.getCurrentLevel() * 5;
+                        int currentLevel = levelManager.getCurrentLevel();
+                        zombiesToNextLevel = 15;
                     }
+                    // No need to erase here, as the zombie will be removed in LevelManager::updateZombies
                 }
             }
         }
+        ++it; // Only increment the iterator if we didn't erase
     }
 }
 

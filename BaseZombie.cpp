@@ -260,10 +260,10 @@ void BaseZombie::loadTextureSet(std::vector<sf::Texture>& textures, const std::s
     
     for (int i = 0; i < count; ++i) {
         sf::Texture texture;
-        std::string filePath = basePath + "/" + prefix + "_00";
+        std::string filePath = basePath + "/" + prefix + "_";
         
         if (i < 10) {
-            filePath += std::to_string(i) + ".png";
+            filePath += "0" + std::to_string(i) + ".png";
         } else {
             filePath += std::to_string(i) + ".png";
         }

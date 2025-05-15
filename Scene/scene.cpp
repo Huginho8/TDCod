@@ -68,7 +68,7 @@ Cutscene::~Cutscene() {
 void Cutscene::init() {
     // Load assets
     if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
-        std::cerr << "Error loading font TDCod/Scene/Assets2/Call of Ops Duty.otf" << std::endl;
+        std::cerr << "Error loading font TDCod/Assets/Call of Ops Duty.otf" << std::endl;
         // Handle error appropriately, maybe set cutsceneFinished = true
     }
     if (!backgroundTexture.loadFromFile("TDCod/Scene/Assets2/Space Background.png")) {
@@ -135,11 +135,8 @@ void Cutscene::init() {
     startButtonText.setFillColor(sf::Color::White);
 
     // Attempt to load a standard font for dialogue, fallback to original if not found
-    if (!dialogueDisplayFont.loadFromFile("/System/Library/Fonts/Supplemental/Arial.ttf")) {
-        if (!dialogueDisplayFont.loadFromFile("Arial.ttf")) { // Try simpler path
-             dialogueDisplayFont = font; // Fallback to the original game font
-        }
-    }
+    // Fallback to the original game font if the primary font fails
+    dialogueDisplayFont = font;
     dialogueText.setFont(dialogueDisplayFont);
     dialogueText.setCharacterSize(24);
     dialogueText.setFillColor(sf::Color::White);

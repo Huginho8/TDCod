@@ -1,4 +1,5 @@
 #include "LevelManager.h"
+#include <memory> // Required for std::unique_ptr
 #include <iostream>
 #include <random>
 #include <cmath>
@@ -13,9 +14,17 @@ LevelManager::LevelManager()
       currentDialogIndex(0),
       showingDialog(false),
       roundTransitionTimer(0.0f),
-      inRoundTransition(false) {
-    
-    // Initialize tutorial dialogs
+      inRoundTransition(false),
+      levelTransitionTimer(0.0f),
+      levelTransitionDuration(3.0f), // Increased duration to 3 seconds
+      levelTransitioning(false),
+      transitionState(TransitionState::NONE),
+      totalZombiesInRound(0), // Initialize new members
+      zombiesSpawnedInRound(0),
+      zombiesKilledInRound(0),
+      zombieSpawnTimer(0.0f),
+      zombieSpawnInterval(1.0f),
+      roundStarted(false) { // Initialize roundStarted
     tutorialDialogs = {
         "Welcome to Echoes of Valkyrie! I'm Dr. Mendel, the lead researcher.",
         "The infection is spreading rapidly. We need your help!",
@@ -29,9 +38,6 @@ LevelManager::LevelManager()
     // Load font
     if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
         std::cerr << "Error loading font for dialog! Trying fallback." << std::endl;
-        if (!font.loadFromFile("arial.ttf")) {
-            std::cerr << "Error loading fallback font 'arial.ttf' as well!" << std::endl;
-        }
     }
     
     // Setup dialog box
@@ -51,6 +57,23 @@ LevelManager::LevelManager()
     mapBounds.setOutlineColor(sf::Color::Red);
     mapBounds.setOutlineThickness(2);
     mapBounds.setPosition(0, 0);
+    
+    // Load level start sound
+    if (!levelStartBuffer.loadFromFile("TDCod/Assets/Audio/wavestart.mp3")) {
+        std::cerr << "Error loading level start sound!" << std::endl;
+    }
+    levelStartSound.setBuffer(levelStartBuffer);
+    
+    // Setup transition rectangle
+    transitionRect.setSize(sf::Vector2f(1000, 1250)); // Match map size
+    transitionRect.setFillColor(sf::Color::Black);
+    transitionRect.setPosition(0, 0);
+    
+    // Setup level start text
+    levelStartText.setFont(font);
+    levelStartText.setCharacterSize(48);
+    levelStartText.setFillColor(sf::Color::White);
+    levelStartText.setPosition(300, 500); // Adjust position as needed
 }
 
 void LevelManager::initialize() {
@@ -60,70 +83,144 @@ void LevelManager::initialize() {
 
 void LevelManager::update(float deltaTime, Player& player) {
     previousLevel = currentLevel;
-    
+
+    // Handle level transition
+    if (levelTransitioning) {
+        levelTransitionTimer += deltaTime;
+
+        if (transitionState == TransitionState::FADE_IN) {
+            float alpha = 255 * (levelTransitionTimer / levelTransitionDuration);
+            transitionRect.setFillColor(sf::Color(0, 0, 0, static_cast<int>(alpha)));
+            // Text appears during fade-in
+            if (levelTransitionTimer >= levelTransitionDuration) {
+                transitionState = TransitionState::SHOW_TEXT;
+                levelTransitionTimer = 0.0f;
+                // Sound is played at the start of the transition in loadLevel
+            }
+        } else if (transitionState == TransitionState::SHOW_TEXT) {
+             // Show text for a fixed duration
+            if (levelTransitionTimer >= 1.0f) { // Show text for 1 second
+                transitionState = TransitionState::FADE_OUT;
+                levelTransitionTimer = 0.0f;
+            }
+        } else if (transitionState == TransitionState::FADE_OUT) {
+            float alpha = 255 - (255 * (levelTransitionTimer / levelTransitionDuration));
+            transitionRect.setFillColor(sf::Color(0, 0, 0, static_cast<int>(alpha)));
+            if (levelTransitionTimer >= levelTransitionDuration) {
+                levelTransitioning = false;
+                transitionState = TransitionState::NONE;
+                levelTransitionTimer = 0.0f;
+                // Level fully starts after transition finishes
+                // Spawn zombies for Round 0 of the new level
+                spawnZombies(getZombieCountForLevel(currentLevel, currentRound), player.getPosition());
+            }
+        }
+        return; // Skip other updates during transition
+    }
+
     // Handle round transition delay
     if (inRoundTransition) {
         roundTransitionTimer += deltaTime;
         if (roundTransitionTimer >= 2.0f) { // 2-second pause between rounds
             inRoundTransition = false;
             roundTransitionTimer = 0.0f;
-            spawnZombies(getZombieCountForLevel(currentLevel), player.getPosition());
+            spawnZombies(getZombieCountForLevel(currentLevel, currentRound), player.getPosition()); // Prepare zombies for spawning
         }
         return;
     }
-    
+
+    // Zombie Spawning Logic
+    if (zombiesSpawnedInRound < totalZombiesInRound && !zombiesToSpawn.empty()) {
+        zombieSpawnTimer += deltaTime;
+        if (zombieSpawnTimer >= zombieSpawnInterval) {
+            // Move zombie from zombiesToSpawn to active zombies
+            zombies.push_back(std::move(zombiesToSpawn.front()));
+            zombiesToSpawn.erase(zombiesToSpawn.begin());
+            zombiesSpawnedInRound++;
+            zombieSpawnTimer = 0.0f; // Reset timer
+        }
+    }
+
     switch (gameState) {
         case GameState::TUTORIAL:
             if (isPlayerNearDoctor(player) && !showingDialog) {
                 showingDialog = true;
             }
-            
+
+            // In tutorial, zombies are spawned directly, not through interval spawning
             if (tutorialZombiesSpawned) {
-                updateZombies(deltaTime, player);
+                 updateZombies(deltaTime, player);
             }
-            
+
             if (currentDialogIndex >= tutorialDialogs.size() && !tutorialZombiesSpawned) {
                 if (doctor) {
-                    spawnZombies(3, doctor->getPosition());
+                    // In tutorial, spawn zombies directly for simplicity
+                    zombies.push_back(std::make_unique<ZombieWalker>(doctor->getPosition().x + 100, doctor->getPosition().y));
+                    zombies.push_back(std::make_unique<ZombieWalker>(doctor->getPosition().x - 100, doctor->getPosition().y));
+                    zombies.push_back(std::make_unique<ZombieWalker>(doctor->getPosition().x, doctor->getPosition().y + 100));
+                    totalZombiesInRound = 3; // Set total for tutorial
+                    zombiesSpawnedInRound = 3; // All spawned at once in tutorial
                 }
                 tutorialZombiesSpawned = true;
             }
 
-            if (zombies.empty() && tutorialZombiesSpawned && currentDialogIndex >= tutorialDialogs.size()) {
+            // Tutorial completion check based on killed zombies
+            if (zombiesKilledInRound == totalZombiesInRound && tutorialZombiesSpawned) {
                 tutorialComplete = true;
-                loadLevel(1);
+                pendingLevelTransition = true; // Set flag instead of loading level and changing state
+                showingDialog = false; // Explicitly hide dialog after tutorial completion
             }
             break;
-            
+
         case GameState::LEVEL1:
         case GameState::LEVEL2:
         case GameState::LEVEL3:
         case GameState::LEVEL4:
         case GameState::LEVEL5:
             updateZombies(deltaTime, player);
-            
-            if (zombies.empty() && !inRoundTransition) {
-                if (gameState == GameState::LEVEL5) {
-                    setGameState(GameState::VICTORY);
-                } else if (currentRound < 1) {
+
+            // Round/Level Progression Logic
+            // Round/Level Progression Logic
+            // Round/Level Progression Logic
+            if (roundStarted && zombiesKilledInRound == totalZombiesInRound && zombiesSpawnedInRound == totalZombiesInRound && !inRoundTransition && !levelTransitioning && transitionState == TransitionState::NONE) {
+                // Check if there are more rounds in the current level
+                if (currentRound < getTotalRoundsForLevel(currentLevel) - 1) {
                     currentRound++;
                     inRoundTransition = true; // Start transition delay
+                    roundStarted = false; // Reset roundStarted for the next round
                 } else {
-                    int nextLevel = currentLevel + 1;
-                    if (nextLevel > 5) {
-                        setGameState(GameState::VICTORY);
-                    } else {
-                        loadLevel(nextLevel);
+                    // All rounds for the current level are complete, move to the next level or boss fight
+                    if (currentLevel >= 1 && currentLevel <= 4) { // Levels 1, 2, 3, 4
+                         int nextLevel = currentLevel + 1;
+                         if (nextLevel > 5) {
+                             setGameState(GameState::VICTORY);
+                         } else {
+                             loadLevel(nextLevel); // loadLevel prepares next round/level
+                             roundStarted = false; // Reset roundStarted for the next level
+                         }
+                    } else if (gameState == GameState::LEVEL5) { // Level 5 (Boss Level before Boss Fight)
+                         setGameState(GameState::BOSS_FIGHT); // Transition to boss fight state
+                         roundStarted = false; // Reset roundStarted for the boss fight
                     }
                 }
             }
             break;
-            
+
+        case GameState::BOSS_FIGHT:
+            // Boss spawning is handled by the general spawning logic now
+            updateZombies(deltaTime, player);
+            // Boss defeated condition
+            if (zombiesKilledInRound == totalZombiesInRound && zombiesSpawnedInRound == totalZombiesInRound) {
+                 setGameState(GameState::VICTORY);
+            }
+            break;
+
+
         case GameState::GAME_OVER:
         case GameState::VICTORY:
             break;
     }
-    
+
     if (doctor) {
         doctor->update(deltaTime, player.getPosition());
     }
@@ -158,6 +255,29 @@ void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
         transitionText.setPosition((windowSize.x - transitionText.getGlobalBounds().width) / 2, windowSize.y / 2);
         window.draw(transitionText);
     }
+    
+    // Draw level transition
+    if (levelTransitioning) {
+        window.draw(transitionRect);
+    }
+    
+    // Draw level transition text during FADE_IN and SHOW_TEXT states
+    // Draw level transition text during FADE_IN and SHOW_TEXT states
+    // Draw level transition text during FADE_IN and SHOW_TEXT states
+    if (levelTransitioning && (transitionState == TransitionState::FADE_IN || transitionState == TransitionState::SHOW_TEXT)) {
+        std::string levelTextString;
+        // Display the next level number based on the previous level
+        // Display the next level number based on the current level after loadLevel
+        if (currentLevel >= 1 && currentLevel <= 5) {
+             levelTextString = "Level " + std::to_string(currentLevel) + " Starting";
+        } else {
+            levelTextString = "Starting Level"; // Fallback text
+        }
+        levelStartText.setString(levelTextString);
+        sf::Vector2u windowSize = window.getSize();
+        levelStartText.setPosition((windowSize.x - levelStartText.getGlobalBounds().width) / 2, windowSize.y / 2 - 50);
+        window.draw(levelStartText);
+    }
 }
 
 void LevelManager::nextLevel() {
@@ -173,6 +293,7 @@ void LevelManager::reset() {
     currentLevel = 0;
     currentRound = 0;
     zombies.clear();
+    zombiesToSpawn.clear(); // Clear zombies waiting to spawn
     doctor.reset();
     tutorialComplete = false;
     tutorialZombiesSpawned = false;
@@ -180,6 +301,15 @@ void LevelManager::reset() {
     showingDialog = false;
     roundTransitionTimer = 0.0f;
     inRoundTransition = false;
+    levelTransitionTimer = 0.0f;
+    levelTransitioning = false;
+    transitionState = TransitionState::NONE;
+    totalZombiesInRound = 0; // Reset new members
+    zombiesSpawnedInRound = 0;
+    zombiesKilledInRound = 0;
+    zombieSpawnTimer = 0.0f;
+    zombieSpawnInterval = 1.0f;
+    roundStarted = false; // Reset roundStarted
     setGameState(GameState::TUTORIAL);
 }
 
@@ -216,6 +346,54 @@ int LevelManager::getPreviousLevel() const {
     return previousLevel;
 }
 
+void LevelManager::loadLevel(int levelNumber) {
+    previousLevel = currentLevel; // Store previous level before changing
+    currentLevel = levelNumber;
+    currentRound = 0;
+    zombies.clear();
+    zombiesToSpawn.clear(); // Clear any zombies waiting to spawn from the previous level
+    totalZombiesInRound = 0; // Reset zombie counts for the new level
+    zombiesSpawnedInRound = 0;
+    zombiesKilledInRound = 0;
+    roundStarted = false; // Ensure roundStarted is false at the start of a new level
+
+    // Only trigger transition for specific level changes after Round 2 (except Tutorial to 1 and 4 to 5)
+    bool triggerTransition = false;
+    // Only trigger transition for specific level changes after Round 2 (Levels 1-3 to next level) and Level 4 to 5
+    if ((previousLevel >= 1 && previousLevel <= 3) && currentLevel == previousLevel + 1) { // Levels 1-3 to next level
+        // Check if previous level's Round 2 was completed
+        // This logic needs to be handled in the update loop when round 2 is cleared
+        // For now, we'll assume the call to loadLevel means round 2 was cleared
+        triggerTransition = true;
+    } else if (previousLevel == 4 && currentLevel == 5) { // Level 4 to Level 5 (Boss)
+         triggerTransition = true;
+    }
+
+
+    if (triggerTransition) {
+        levelTransitioning = true;
+        levelTransitionTimer = 0.0f;
+        transitionState = TransitionState::FADE_IN;
+        levelStartSound.play(); // Play sound at the start of the transition
+        // Zombies will be spawned after the transition finishes
+    } else {
+        // If no transition, spawn zombies immediately
+        spawnZombies(getZombieCountForLevel(currentLevel, currentRound), sf::Vector2f(400, 300));
+    }
+}
+
+// Function to get the total number of rounds for a given level
+int LevelManager::getTotalRoundsForLevel(int level) const {
+    switch (level) {
+        case 1: return 2; // Level 1 has 2 rounds (0 and 1)
+        case 2: return 2; // Level 2 has 2 rounds (0 and 1)
+        case 3: return 2; // Level 3 has 2 rounds (0 and 1)
+        case 4: return 2; // Level 4 has 2 rounds (0 and 1)
+        case 5: return 1; // Level 5 (Boss) has 1 round (0)
+        default: return 1; // Default to 1 round for other cases
+    }
+}
+
 void LevelManager::spawnDoctor(float x, float y) {
     doctor.emplace(x, y);
 }
@@ -240,70 +418,71 @@ bool LevelManager::isPlayerNearDoctor(const Player& player) const {
 }
 
 void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
-    zombies.clear();
-    
+    zombiesToSpawn.clear(); // Clear previous zombies waiting to spawn
+    totalZombiesInRound = count;
+    zombiesSpawnedInRound = 0;
+    zombiesKilledInRound = 0;
+    zombieSpawnTimer = 0.0f; // Reset spawn timer
+    zombieSpawnInterval = 1.0f; // Set a default spawn interval (can be adjusted per level/round)
+
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<> distribX(50, MAP_SIZE.x - 50);
     std::uniform_real_distribution<> distribY(50, MAP_SIZE.y - 50);
-    std::uniform_int_distribution<> typeDist(0, currentLevel - 1);
-    
+    std::uniform_int_distribution<> typeDist(0, currentLevel > 0 ? currentLevel - 1 : 0);
+
     for (int i = 0; i < count; ++i) {
         float x, y;
         float minDistance = 200.0f;
-        
+
         do {
             x = distribX(gen);
             y = distribY(gen);
-            
+
             float dx = x - playerPos.x;
             float dy = y - playerPos.y;
             float distance = std::sqrt(dx*dx + dy*dy);
-            
+
             if (distance >= minDistance) {
                 break;
             }
         } while (true);
-        
+
         if (gameState == GameState::TUTORIAL) {
-            zombies.emplace_back(ZombieWalker(x, y));
-        } else if (gameState == GameState::LEVEL5) {
-            if (i == 0) {
-                zombies.emplace_back(ZombieKing(x, y));
-            } else {
-                int type = typeDist(gen);
-                switch (type % 4) {
-                    case 0: zombies.emplace_back(ZombieWalker(x, y)); break;
-                    case 1: zombies.emplace_back(ZombieCrawler(x, y)); break;
-                    case 2: zombies.emplace_back(ZombieTank(x, y)); break;
-                    case 3: zombies.emplace_back(ZombieZoom(x, y)); break;
-                }
+            zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y));
+        } else if (gameState == GameState::BOSS_FIGHT) {
+             // Only one boss zombie
+            if (zombiesToSpawn.empty()) {
+                 zombiesToSpawn.push_back(std::make_unique<ZombieKing>(x, y));
             }
         } else {
             int type = typeDist(gen);
-            switch (type % currentLevel) {
-                case 0: zombies.emplace_back(ZombieWalker(x, y)); break;
-                case 1: if (currentLevel >= 2) zombies.emplace_back(ZombieCrawler(x, y)); else zombies.emplace_back(ZombieWalker(x, y)); break;
-                case 2: if (currentLevel >= 3) zombies.emplace_back(ZombieTank(x, y)); else zombies.emplace_back(ZombieWalker(x, y)); break;
-                case 3: if (currentLevel >= 4) zombies.emplace_back(ZombieZoom(x, y)); else zombies.emplace_back(ZombieWalker(x, y)); break;
+            switch (type % (currentLevel > 0 ? currentLevel : 1)) {
+                case 0: zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
+                case 1: if (currentLevel >= 2) zombiesToSpawn.push_back(std::make_unique<ZombieCrawler>(x, y)); else zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
+                case 2: if (currentLevel >= 3) zombiesToSpawn.push_back(std::make_unique<ZombieTank>(x, y)); else zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
+                case 3: if (currentLevel >= 4) zombiesToSpawn.push_back(std::make_unique<ZombieZoom>(x, y)); else zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
+                default: zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break; // Default case to ensure a zombie is always added
             }
         }
     }
+    roundStarted = true; // Indicate that the round has started and zombies are prepared
 }
 
 void LevelManager::updateZombies(float deltaTime, const Player& player) {
     for (auto& zombie : zombies) {
-        zombie.update(deltaTime, player.getPosition());
+        zombie->update(deltaTime, player.getPosition());
     }
-    
+
     auto it = zombies.begin();
     while (it != zombies.end()) {
         bool erased = false;
-        if (player.isAttacking() && player.getAttackBounds().intersects(it->getHitbox())) {
-            it->takeDamage(player.getAttackDamage());
-            if (it->isDead()) {
+        if (player.isAttacking() && player.getAttackBounds().intersects((*it)->getHitbox())) {
+            (*it)->takeDamage(player.getAttackDamage());
+            if ((*it)->isDead()) {
                 it = zombies.erase(it);
                 erased = true;
+                zombiesKilledInRound++; // Increment killed count
             }
         }
         if (!erased) {
@@ -314,11 +493,11 @@ void LevelManager::updateZombies(float deltaTime, const Player& player) {
 
 void LevelManager::drawZombies(sf::RenderWindow& window) const {
     for (const auto& zombie : zombies) {
-        zombie.draw(window);
+        zombie->draw(window);
     }
 }
 
-std::vector<Zombie>& LevelManager::getZombies() {
+std::vector<std::unique_ptr<BaseZombie>>& LevelManager::getZombies() {
     return zombies;
 }
 
@@ -356,84 +535,99 @@ void LevelManager::drawHUD(sf::RenderWindow& window, const Player& player) {
     staminaBar.setSize(sf::Vector2f(barWidth * staminaPercent, barHeight));
     staminaBar.setFillColor(sf::Color::Green);
     staminaBar.setPosition((windowSize.x - barWidth) / 2.0f, windowSize.y - barHeight - padding);
-    
+
     window.draw(staminaBarBackground);
     window.draw(staminaBar);
-    
-    // Draw level and round info (Top-Left)
-    sf::Text levelText;
-    levelText.setFont(font);
-    levelText.setCharacterSize(18);
-    levelText.setFillColor(sf::Color::White);
-    
-    if (gameState == GameState::TUTORIAL) {
-        levelText.setString("Tutorial");
-    } else if (gameState == GameState::LEVEL5) {
-        levelText.setString("Boss Level");
-    } else {
-        levelText.setString("Level " + std::to_string(currentLevel) + " - Round " + std::to_string(currentRound + 1));
-    }
-    
-    levelText.setPosition(10, 40);
-    window.draw(levelText);
-    
-    // Draw zombies remaining
-    sf::Text zombiesText;
-    zombiesText.setFont(font);
-    zombiesText.setCharacterSize(18);
-    zombiesText.setFillColor(sf::Color::White);
-    zombiesText.setString("Zombies: " + std::to_string(zombies.size()));
-    zombiesText.setPosition(10, 70);
-    window.draw(zombiesText);
-}
+    // Draw level and round info (Top-Left) and zombie count only if tutorial dialog is not showing
+    // Draw level and round info (Top-Left) and zombie count only if tutorial dialog is not showing
+    // Draw level and round info (Top-Left) and zombie count
+    // Always show HUD elements except during level transitions where they are faded
+    if (!levelTransitioning || (levelTransitioning && (transitionState == TransitionState::FADE_OUT || transitionState == TransitionState::FADE_IN))) {
+        sf::Text levelText;
+        levelText.setFont(font);
+        levelText.setCharacterSize(18);
+        levelText.setPosition(padding, padding + 30); // Position below points text (points are at 10, 10)
 
-void LevelManager::showTutorialDialog(sf::RenderWindow& window) {
-    if (currentDialogIndex >= tutorialDialogs.size()) {
-        showingDialog = false;
-        return;
+        sf::Text zombieCountText;
+        zombieCountText.setFont(font);
+        zombieCountText.setCharacterSize(18);
+        zombieCountText.setFillColor(sf::Color::White); // Set default color
+        zombieCountText.setPosition(padding, padding + 50); // Position below level text
+
+        // Calculate alpha for fading during level transition
+        sf::Uint8 alpha = 255;
+        if (levelTransitioning) {
+            if (transitionState == TransitionState::FADE_IN) {
+                alpha = static_cast<sf::Uint8>(255 * (1.0f - (levelTransitionTimer / levelTransitionDuration))); // Fade out during fade in
+            } else if (transitionState == TransitionState::FADE_OUT) {
+                 alpha = static_cast<sf::Uint8>(255 * (levelTransitionTimer / levelTransitionDuration)); // Fade in during fade out
+            } else {
+                alpha = 0; // Fully transparent during SHOW_TEXT
+            }
+        }
+
+        levelText.setFillColor(sf::Color(255, 255, 255, alpha));
+        zombieCountText.setFillColor(sf::Color(255, 255, 255, alpha));
+
+
+        if (currentLevel == 0) {
+            levelText.setString("Tutorial");
+        }
+        else if (gameState == GameState::BOSS_FIGHT) {
+            levelText.setString("Boss Level");
+        }
+        else {
+            // Display "Level X - Round Y"
+            levelText.setString("Level " + std::to_string(currentLevel) + " - Round " + std::to_string(currentRound + 1));
+        }
+        window.draw(levelText);
+
+        // Draw zombie count
+        zombieCountText.setString("Zombies: " + std::to_string(zombies.size() + zombiesToSpawn.size())); // Include zombies waiting to spawn in count
+        window.draw(zombieCountText);
     }
-    
-    dialogText.setString(tutorialDialogs[currentDialogIndex]);
-    
+}
+void LevelManager::showTutorialDialog(sf::RenderWindow& window) {
     sf::Vector2u windowSize = window.getSize();
     dialogBox.setPosition((windowSize.x - dialogBox.getSize().x) / 2, windowSize.y - dialogBox.getSize().y - 20);
-    
-    dialogText.setPosition(
-        dialogBox.getPosition().x + 20,
-        dialogBox.getPosition().y + 20
-    );
-    
+    dialogText.setPosition((dialogBox.getPosition().x + 10), dialogBox.getPosition().y + 10);
+
+    if (currentDialogIndex < tutorialDialogs.size()) {
+        dialogText.setString(tutorialDialogs[currentDialogIndex]);
+    }
+
     window.draw(dialogBox);
     window.draw(dialogText);
-    
-    sf::Text promptText;
-    promptText.setFont(font);
-    promptText.setCharacterSize(14);
-    promptText.setFillColor(sf::Color::Yellow);
-    promptText.setString("Press SPACE to continue...");
-    promptText.setPosition(
-        dialogBox.getPosition().x + dialogBox.getSize().x - 200,
-        dialogBox.getPosition().y + dialogBox.getSize().y - 30
-    );
-    window.draw(promptText);
+
+    // Add "Press Space to Continue..." text
+    if (currentDialogIndex < tutorialDialogs.size()) {
+        sf::Text continueText;
+        continueText.setFont(font);
+        continueText.setCharacterSize(18);
+        continueText.setFillColor(sf::Color::Yellow);
+        continueText.setString("Press Space to Continue...");
+        continueText.setPosition(dialogBox.getPosition().x + dialogBox.getSize().x - continueText.getGlobalBounds().width - 10, dialogBox.getPosition().y + dialogBox.getSize().y - continueText.getGlobalBounds().height - 10);
+        window.draw(continueText);
+    }
 }
 
 void LevelManager::advanceDialog() {
-    if (showingDialog) {
-        currentDialogIndex++;
-        if (currentDialogIndex >= tutorialDialogs.size()) {
-            showingDialog = false;
-        }
+    currentDialogIndex++;
+    if (currentDialogIndex < tutorialDialogs.size()) {
+        showingDialog = true;
+    } else {
+        showingDialog = false; // Hide dialog after the last one
     }
 }
 
-int LevelManager::getZombieCountForLevel(int level) {
+int LevelManager::getZombieCountForLevel(int level, int round) {
     switch (level) {
-        case 1: return 10;
-        case 2: return 12;
-        case 3: return 15;
-        case 4: return 18;
-        case 5: return 10; // 1 ZombieKing + 9 others
-        default: return 10;
+        case 0: return 3; // Tutorial
+        case 1: return 5 + round;
+        case 2: return 7;
+        case 3: return 7;
+        case 4: return 7;
+        case 5: return 15;
+        default: return 1; // Default to 1 round for other cases
     }
 }

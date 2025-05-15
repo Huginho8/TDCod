@@ -2,6 +2,7 @@
 #define LEVELMANAGER_H
 
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <vector>
 #include <string>
 #include <optional>
@@ -21,8 +22,16 @@ enum class GameState {
     LEVEL3,
     LEVEL4,
     LEVEL5,
+    BOSS_FIGHT,
     GAME_OVER,
     VICTORY
+};
+
+enum class TransitionState {
+    NONE,
+    FADE_IN,
+    SHOW_TEXT,
+    FADE_OUT
 };
 
 class LevelManager {
@@ -48,7 +57,8 @@ public:
     void loadLevel(int levelNumber);
     int getCurrentLevel() const;
     int getCurrentRound() const;
-    
+    int getTotalRoundsForLevel(int level) const; // Added declaration
+
     void spawnDoctor(float x, float y);
     void drawDoctor(sf::RenderWindow& window);
     bool isPlayerNearDoctor(const Player& player) const;
@@ -56,7 +66,7 @@ public:
     void spawnZombies(int count, sf::Vector2f playerPos);
     void updateZombies(float deltaTime, const Player& player);
     void drawZombies(sf::RenderWindow& window) const;
-    std::vector<Zombie>& getZombies();
+    std::vector<std::unique_ptr<BaseZombie>>& getZombies();
     
     void drawHUD(sf::RenderWindow& window, const Player& player);
     
@@ -69,6 +79,7 @@ private:
     int previousLevel;
     int currentRound;
     bool tutorialComplete;
+    bool pendingLevelTransition = false; // Added flag
     
     std::optional<Doctor> doctor;
     bool tutorialZombiesSpawned;
@@ -78,9 +89,17 @@ private:
     sf::Font font;
     sf::RectangleShape dialogBox;
     bool showingDialog;
-    
-    std::vector<Zombie> zombies;
-    
+
+    std::vector<std::unique_ptr<BaseZombie>> zombies; // Active zombies in the game world
+    std::vector<std::unique_ptr<BaseZombie>> zombiesToSpawn; // Zombies waiting to be spawned
+
+    int totalZombiesInRound;
+    int zombiesSpawnedInRound;
+    int zombiesKilledInRound;
+    float zombieSpawnTimer;
+    float zombieSpawnInterval;
+    bool roundStarted; // Added flag to indicate if a round has started
+
     sf::RectangleShape mapBounds;
     const sf::Vector2f MAP_SIZE{1000.f, 1250.f};
     
@@ -88,7 +107,22 @@ private:
     float roundTransitionTimer;
     bool inRoundTransition;
     
-    int getZombieCountForLevel(int level);
+    // Level Transition
+    float levelTransitionTimer;
+    float levelTransitionDuration;
+    bool levelTransitioning;
+    TransitionState transitionState;
+    sf::RectangleShape transitionRect;
+    sf::Text levelStartText;
+    sf::Sound levelStartSound;
+    sf::SoundBuffer levelStartBuffer;
+    
+    int getZombieCountForLevel(int level, int round); // Updated signature
+    
+public:
+    bool isLevelTransitionPending() const { return pendingLevelTransition; }
+    void clearLevelTransitionPending() { pendingLevelTransition = false; }
+    bool isLevelTransitioning() const { return levelTransitioning; } // Added getter for levelTransitioning
 };
 
 #endif // LEVELMANAGER_H

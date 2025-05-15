@@ -17,7 +17,7 @@ ZombieCrawler::ZombieCrawler(float x, float y)
 
 void ZombieCrawler::loadTextures() {
     // Load walk animation textures
-    for (int i = 0; i < 9; ++i) {
+    for (int i = 0; i < 8; ++i) { // Changed from 9 to 8
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieCrawler/Walk/Walk_00";
         filePath += std::to_string(i) + ".png";
@@ -28,7 +28,7 @@ void ZombieCrawler::loadTextures() {
     }
 
     // Load attack animation textures
-    for (int i = 0; i < 9; ++i) {
+    for (int i = 0; i < 8; ++i) { // Changed from 9 to 8
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieCrawler/Attack/Attack1_00";
         filePath += std::to_string(i) + ".png";

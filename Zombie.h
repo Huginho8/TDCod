@@ -4,11 +4,8 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 
-enum class ZombieState {
-    WALK,
-    ATTACK,
-    DEATH
-};
+#include "BaseZombie.h"
+
 
 class Zombie {
 public:
