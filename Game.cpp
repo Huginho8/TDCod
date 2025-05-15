@@ -102,7 +102,19 @@ void Game::processInput() {
         
         if (event.type == sf::Event::MouseButtonPressed) {
             if (event.mouseButton.button == sf::Mouse::Left) {
-                player.attack();
+                // Get mouse position in world coordinates
+                sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
+                sf::Vector2f worldMousePosition = window.mapPixelToCoords(mousePosition, gameView);
+
+                // Check weapon type
+                if (player.getCurrentWeapon() == WeaponType::PISTOL || player.getCurrentWeapon() == WeaponType::RIFLE) {
+                    if (player.timeSinceLastShot >= player.fireCooldown) {
+                        player.shoot(worldMousePosition, physics);
+                    }
+                }
+                else {
+                    player.attack();
+                }
             }
         }
     }

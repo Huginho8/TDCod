@@ -1,7 +1,9 @@
 #include "Player.h"
+#include "Bullet.h"
 #include <iostream>
 #include <cmath>
 #include <algorithm>
+#include <random>
 
 Player::Player(Vec2 position)
     : Entity(EntityType::Player, position, Vec2(60.f, 60.f), false, 1.f, true),
@@ -387,6 +389,8 @@ void Player::updateStamina(float deltaTime) {
 }
 
 void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize, sf::Vector2f worldMousePosition) {
+    timeSinceLastMeleeAttack += deltaTime;
+    timeSinceLastShot += deltaTime;
     if (dead) {
         updateAnimation(deltaTime);
         if (walkingSound.getStatus() == sf::Sound::Playing) {
@@ -530,19 +534,27 @@ sf::Sprite& Player::getSprite() {
 }
 
 void Player::attack() {
-    if (!attacking && !dead) {
+    std::cout << "[DEBUG] attack() called: attacking=" << attacking
+        << ", dead=" << dead
+        << ", timeSinceLastMeleeAttack=" << timeSinceLastMeleeAttack
+        << ", meleeAttackCooldown=" << meleeAttackCooldown
+        << std::endl;
+
+    if (!attacking && !dead && timeSinceLastMeleeAttack >= meleeAttackCooldown) {
+        std::cout << "[DEBUG] attack triggered!" << std::endl;
         attacking = true;
         currentAttackFrame = 0;
         attackTimer = 0.0f;
         setState(PlayerState::ATTACK);
-        
+        timeSinceLastMeleeAttack = 0.0f;
+
         std::vector<sf::Texture>* attackTextures = nullptr;
         switch (currentWeapon) {
-            case WeaponType::KNIFE: attackTextures = &knifeAttackTextures; break;
-            case WeaponType::BAT: attackTextures = &batAttackTextures; break;
-            case WeaponType::PISTOL: attackTextures = &pistolAttackTextures; break;
-            case WeaponType::RIFLE: attackTextures = &rifleAttackTextures; break;
-            case WeaponType::FLAMETHROWER: attackTextures = &flamethrowerAttackTextures; break;
+        case WeaponType::KNIFE: attackTextures = &knifeAttackTextures; break;
+        case WeaponType::BAT: attackTextures = &batAttackTextures; break;
+        case WeaponType::PISTOL: attackTextures = &pistolAttackTextures; break;
+        case WeaponType::RIFLE: attackTextures = &rifleAttackTextures; break;
+        case WeaponType::FLAMETHROWER: attackTextures = &flamethrowerAttackTextures; break;
         }
         if (attackTextures && !attackTextures->empty()) {
             sprite.setTexture((*attackTextures)[currentAttackFrame]);
@@ -552,6 +564,7 @@ void Player::attack() {
         knifeAttackSound.play();
     }
 }
+
 
 void Player::render(sf::RenderWindow& window) {
     draw(window);
@@ -611,3 +624,73 @@ float Player::getMaxHealth() const {
 void Player::syncSpriteWithBody() {
     sprite.setPosition(body.position.x, body.position.y);
 }
+
+// Returns a Vec2 rotated by angleRadians
+Vec2 rotateVec2(const Vec2& v, float angleRadians) {
+    float cosA = std::cos(angleRadians);
+    float sinA = std::sin(angleRadians);
+    return Vec2(
+        v.x * cosA - v.y * sinA,
+        v.x * sinA + v.y * cosA
+    );
+}
+
+void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld) {
+    // Only allow shooting for gun-type weapons
+    if (currentWeapon != WeaponType::PISTOL && currentWeapon != WeaponType::RIFLE)
+        return;
+
+    // Set fireCooldown based on weapon
+    switch (currentWeapon) {
+    case WeaponType::PISTOL: fireCooldown = 0.3f; break;
+    case WeaponType::RIFLE: fireCooldown = 0.1f; break;
+    default: fireCooldown = 0.5f; break;
+    }
+
+    // Weapon-specific bullet properties
+    float bulletSpeed = 500.f;
+    float bulletMass = 1.0f;
+    int maxPenetrations = 1;
+    float inaccuracyDegrees = 5.0f;
+
+    switch (currentWeapon) {
+    case WeaponType::PISTOL:
+        bulletSpeed = 1000.f;
+        bulletMass = 1.0f;
+        maxPenetrations = 1;
+        inaccuracyDegrees = 2.0f;
+        break;
+    case WeaponType::RIFLE:
+        bulletSpeed = 1200.f;
+        bulletMass = 1.5f;
+        maxPenetrations = 2;
+        inaccuracyDegrees = 3.0f;
+        break;
+    default:
+        return;
+    }
+
+    // Calculate direction
+    sf::Vector2f playerPos = sprite.getPosition();
+    sf::Vector2f dir = target - playerPos;
+    float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+    if (len == 0) return;
+    dir /= len; // Normalize
+
+    // Add inaccuracy
+    float inaccuracyRadians = inaccuracyDegrees * 3.14159265f / 180.0f;
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(-inaccuracyRadians, inaccuracyRadians);
+    float angle = dis(gen);
+
+    Vec2 velocity = rotateVec2(Vec2(dir.x, dir.y), angle) * bulletSpeed;
+
+    // Create and add bullet
+    Bullet* bullet = new Bullet(Vec2(playerPos.x, playerPos.y), velocity, bulletMass, maxPenetrations);
+    physicsWorld.addBody(&bullet->getBody(), false);
+
+    // Reset shot timer
+    timeSinceLastShot = 0.0f;
+}
+

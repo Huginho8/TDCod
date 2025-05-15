@@ -1,6 +1,7 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include "PhysicsWorld.h"
 #include "Entity.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
@@ -59,7 +60,13 @@ public:
     
     void reset();
     
+    WeaponType getCurrentWeapon() const { return currentWeapon; }
     void setWeapon(WeaponType weapon);
+    void shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld);
+
+    float timeSinceLastShot = 0.0f;
+    float fireCooldown = 0.0f; // Time (in seconds) between shots
+
 
     void syncSpriteWithBody();
 private:
@@ -101,6 +108,9 @@ private:
     float attackFrameTime;
     sf::FloatRect attackBounds;
     
+    float timeSinceLastMeleeAttack = 0.0f;
+    float meleeAttackCooldown = 0.4f;
+
     bool dead;
     int currentDeathFrame;
     float deathTimer;
@@ -108,6 +118,7 @@ private:
     
     // Current weapon
     WeaponType currentWeapon;
+
     
     // Texture collections for each weapon
     std::vector<sf::Texture> knifeIdleTextures;
