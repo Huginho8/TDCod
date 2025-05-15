@@ -5,6 +5,7 @@
 #include <SFML/Audio.hpp>
 #include "Player.h"
 #include "LevelManager.h"
+#include "PhysicsWorld.h"
 
 class Game {
 public:
@@ -24,6 +25,7 @@ private:
     sf::RenderWindow window;
     Player player;
     LevelManager levelManager;
+    PhysicsWorld physics;
     
     sf::Sprite mapSprite1;
     sf::Sprite mapSprite2;

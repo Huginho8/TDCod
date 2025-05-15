@@ -2,15 +2,17 @@
 #include <iostream>
 
 ZombieWalker::ZombieWalker(float x, float y)
-    : BaseZombie(x, y, 30.0f, 5.0f, 50.0f, 40.0f, 2.0f) {
+    : BaseZombie(x, y, 30.0f, 5.0f, 50.0f, 40.0f, 2.0f) // health, attackDamage, speed, attackRange, attackCooldown
+{
     loadTextures();
-    
+
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
         sf::Vector2u textureSize = walkTextures[0].getSize();
         sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
         sprite.setScale(0.4f, 0.4f);
-        sprite.setPosition(position);
+        // Set sprite position to match the physics body
+        sprite.setPosition(body.position.x, body.position.y);
     }
 }
 

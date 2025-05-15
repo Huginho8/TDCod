@@ -3,32 +3,32 @@
 #include <cmath>
 #include <algorithm>
 
-Player::Player() : 
-    currentState(PlayerState::IDLE), 
-    speed(100.0f), 
-    sprintSpeed(180.0f), 
-    velocity(0.0f, 0.0f), 
-    health(100.0f), 
-    maxHealth(100.0f), 
-    stamina(100.0f), 
-    maxStamina(100.0f), 
-    staminaRegenRate(20.0f), 
-    staminaDrainRate(30.0f), 
-    staminaRegenDelay(1.5f), 
-    timeSinceStaminaUse(0.0f), 
-    isStaminaRegenerating(true), 
-    currentFrame(0), 
-    animationTimer(0.0f), 
-    animationFrameTime(0.1f), 
-    attacking(false), 
-    currentAttackFrame(0), 
-    attackTimer(0.0f), 
-    attackFrameTime(0.05f), 
-    dead(false), 
-    currentDeathFrame(0), 
-    deathTimer(0.0f), 
-    deathFrameTime(0.1f), 
-    rotationSpeed(180.0f), 
+Player::Player(Vec2 position)
+    : Entity(EntityType::Player, position, Vec2(60.f, 60.f), false, 1.f, true),
+    currentState(PlayerState::IDLE),
+    speed(100.0f),
+    sprintSpeed(180.0f),
+    health(100.0f),
+    maxHealth(100.0f),
+    stamina(100.0f),
+    maxStamina(100.0f),
+    staminaRegenRate(20.0f),
+    staminaDrainRate(30.0f),
+    staminaRegenDelay(1.5f),
+    timeSinceStaminaUse(0.0f),
+    isStaminaRegenerating(true),
+    currentFrame(0),
+    animationTimer(0.0f),
+    animationFrameTime(0.1f),
+    attacking(false),
+    currentAttackFrame(0),
+    attackTimer(0.0f),
+    attackFrameTime(0.05f),
+    dead(false),
+    currentDeathFrame(0),
+    deathTimer(0.0f),
+    deathFrameTime(0.1f),
+    rotationSpeed(180.0f),
     scaleFactor(0.35f),
     currentWeapon(WeaponType::KNIFE)
 {
@@ -336,7 +336,7 @@ void Player::updateAnimation(float deltaTime) {
                 sprite.setTexture((*attackTextures)[currentAttackFrame]);
             } else {
                 attacking = false;
-                if (velocity.x != 0.0f || velocity.y != 0.0f) {
+                if (body.velocity.x != 0.0f || body.velocity.y != 0.0f) {
                     setState(PlayerState::WALK);
                 } else {
                     setState(PlayerState::IDLE);
@@ -400,48 +400,43 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
         health = std::min(maxHealth, health + healthRegenRate * deltaTime);
     }
 
-    velocity.x = 0.0f;
-    velocity.y = 0.0f;
+    body.velocity = Vec2(0.f, 0.f);
     
     bool wantsToSprint = sf::Keyboard::isKeyPressed(sf::Keyboard::LShift) || sf::Keyboard::isKeyPressed(sf::Keyboard::RShift);
     bool actuallySprinting = false;
     
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
-        velocity.x = -1.0f;
+        body.velocity.x = -1.0f;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
-        velocity.x = 1.0f;
+        body.velocity.x = 1.0f;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
-        velocity.y = -1.0f;
+        body.velocity.y = -1.0f;
     }
     if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
-        velocity.y = 1.0f;
+        body.velocity.y = 1.0f;
     }
     
-    if (velocity.x != 0 && velocity.y != 0) {
-        float length = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-        velocity.x /= length;
-        velocity.y /= length;
-    }
+    if (body.velocity.length() > 0.f) body.velocity.normalize();
     
     if (!attacking && !dead) {
-        if (velocity.x != 0 || velocity.y != 0) {
+        if (body.velocity.x != 0 || body.velocity.y != 0) {
             setState(PlayerState::WALK);
         } else {
             setState(PlayerState::IDLE);
         }
     }
 
-    if (velocity.x != 0 || velocity.y != 0) {
+    if (body.velocity.x != 0 || body.velocity.y != 0) {
         if (wantsToSprint && stamina > 0) {
-            velocity.x *= sprintSpeed;
-            velocity.y *= sprintSpeed;
+            body.velocity.x *= sprintSpeed;
+            body.velocity.y *= sprintSpeed;
             actuallySprinting = true;
             walkingSound.setPitch(1.5f);
         } else {
-            velocity.x *= speed;
-            velocity.y *= speed;
+            body.velocity.x *= speed;
+            body.velocity.y *= speed;
             walkingSound.setPitch(1.0f);
         }
         if (walkingSound.getStatus() != sf::Sound::Playing && !attacking) {
@@ -467,16 +462,7 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
         }
     }
 
-    sf::Vector2f newPosition = sprite.getPosition() + velocity * deltaTime;
-    
-    sf::FloatRect playerBounds = sprite.getGlobalBounds();
-    float playerWidth = playerBounds.width;
-    float playerHeight = playerBounds.height;
-    
-    newPosition.x = std::max(playerWidth / 2.0f, std::min(newPosition.x, static_cast<float>(mapSize.x) - playerWidth / 2.0f));
-    newPosition.y = std::max(playerHeight / 2.0f, std::min(newPosition.y, static_cast<float>(mapSize.y) - playerHeight / 2.0f));
-    
-    sprite.setPosition(newPosition);
+    syncSpriteWithBody();
     
     sf::Vector2f playerPosition = sprite.getPosition();
     sf::Vector2f direction = worldMousePosition - playerPosition;
@@ -531,7 +517,8 @@ void Player::draw(sf::RenderWindow& window) {
 }
 
 void Player::setPosition(float x, float y) {
-    sprite.setPosition(x, y);
+    body.position = Vec2(x, y);
+    syncSpriteWithBody();
 }
 
 sf::Vector2f Player::getPosition() const {
@@ -597,9 +584,7 @@ sf::FloatRect Player::getAttackHitbox() const {
 }
 
 void Player::applyKnockback(const sf::Vector2f& direction, float force) {
-    sf::Vector2f knockbackVelocity = direction * force;
-    sf::Vector2f newPosition = sprite.getPosition() + knockbackVelocity * 0.016f;
-    sprite.setPosition(newPosition);
+    body.externalImpulse += Vec2(direction.x, direction.y) * force;
 }
 
 void Player::reset() {
@@ -621,4 +606,8 @@ float Player::getCurrentHealth() const {
 
 float Player::getMaxHealth() const {
     return maxHealth;
+}
+
+void Player::syncSpriteWithBody() {
+    sprite.setPosition(body.position.x, body.position.y);
 }

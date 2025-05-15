@@ -4,13 +4,13 @@
 ZombieCrawler::ZombieCrawler(float x, float y)
     : BaseZombie(x, y, 20.0f, 3.0f, 40.0f, 30.0f, 1.0f) {
     loadTextures();
-    
+
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
         sf::Vector2u textureSize = walkTextures[0].getSize();
         sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
         sprite.setScale(0.35f, 0.35f);
-        sprite.setPosition(position);
+        sprite.setPosition(body.position.x, body.position.y);
     }
 }
 

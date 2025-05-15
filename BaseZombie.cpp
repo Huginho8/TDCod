@@ -3,27 +3,27 @@
 #include <cmath>
 
 BaseZombie::BaseZombie(float x, float y, float health, float attackDamage, float speed, float attackRange, float attackCooldown)
-    : position(x, y),
-      currentState(ZombieState::WALK),
-      speed(speed),
-      currentFrame(0),
-      animationTimer(0.0f),
-      animationFrameTime(0.1f),
-      attacking(false),
-      currentAttackFrame(0),
-      attackTimer(0.0f),
-      attackFrameTime(0.1f),
-      attackCooldown(attackCooldown),
-      timeSinceLastAttack(0.0f),
-      attackDamage(attackDamage),
-      attackRange(attackRange),
-      dead(false),
-      currentDeathFrame(0),
-      deathTimer(0.0f),
-      deathFrameTime(0.15f),
-      health(health),
-      maxHealth(health),
-      m_hasDealtDamageInAttack(false) {
+    : Entity(EntityType::Enemy, Vec2(x, y), Vec2(60.f, 60.f), false, 1.0f, true),
+    currentState(ZombieState::WALK),
+    speed(speed),
+    currentFrame(0),
+    animationTimer(0.0f),
+    animationFrameTime(0.1f),
+    attacking(false),
+    currentAttackFrame(0),
+    attackTimer(0.0f),
+    attackFrameTime(0.1f),
+    attackCooldown(attackCooldown),
+    timeSinceLastAttack(0.0f),
+    attackDamage(attackDamage),
+    attackRange(attackRange),
+    dead(false),
+    currentDeathFrame(0),
+    deathTimer(0.0f),
+    deathFrameTime(0.15f),
+    health(health),
+    maxHealth(health),
+    m_hasDealtDamageInAttack(false) {
 }
 
 void BaseZombie::update(float deltaTime, sf::Vector2f playerPosition) {
@@ -32,29 +32,37 @@ void BaseZombie::update(float deltaTime, sf::Vector2f playerPosition) {
         return;
     }
 
-    sf::Vector2f direction = playerPosition - position;
-    float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+    Vec2 playerPos(playerPosition.x, playerPosition.y);
+    Vec2 direction = playerPos - body.position;
+    float distance = direction.length();
 
     timeSinceLastAttack += deltaTime;
 
     if (distance <= attackRange && timeSinceLastAttack >= attackCooldown) {
         attack();
         timeSinceLastAttack = 0.0f;
-    } else if (!attacking) {
+        body.velocity = Vec2(0, 0); // Stop moving while attacking
+    }
+    else if (!attacking) {
         if (distance > 5.0f) {
             setState(ZombieState::WALK);
 
-            if (distance > 0) {
-                direction /= distance;
-            }
-
-            position.x += direction.x * speed * deltaTime;
-            position.y += direction.y * speed * deltaTime;
-            sprite.setPosition(position);
-
-            float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
-            sprite.setRotation(angle - 90.0f);
+            if (distance > 0) direction.normalize();
+            body.velocity = direction * speed;
         }
+        else {
+            body.velocity = Vec2(0, 0);
+        }
+    }
+    else {
+        body.velocity = Vec2(0, 0);
+    }
+
+    // Sync sprite position and rotation with physics body
+    sprite.setPosition(body.position.x, body.position.y);
+    if (distance > 1.0f) {
+        float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
+        sprite.setRotation(angle - 90.0f);
     }
 
     updateAnimation(deltaTime);
@@ -69,14 +77,14 @@ void BaseZombie::draw(sf::RenderWindow& window) const {
         sf::RectangleShape healthBarBackground;
         healthBarBackground.setSize(sf::Vector2f(barWidth, barHeight));
         healthBarBackground.setFillColor(sf::Color(100, 100, 100, 150));
-        healthBarBackground.setPosition(position.x - barWidth / 2, position.y - 50);
+        healthBarBackground.setPosition(body.position.x - barWidth / 2, body.position.y - 50);
 
         sf::RectangleShape healthBar;
         float healthPercent = health / maxHealth;
         if (healthPercent < 0) healthPercent = 0;
         healthBar.setSize(sf::Vector2f(barWidth * healthPercent, barHeight));
         healthBar.setFillColor(sf::Color::Red);
-        healthBar.setPosition(position.x - barWidth / 2, position.y - 50);
+        healthBar.setPosition(body.position.x - barWidth / 2, body.position.y - 50);
 
         window.draw(healthBarBackground);
         window.draw(healthBar);
@@ -142,7 +150,7 @@ float BaseZombie::getAttackDamage() const {
 }
 
 sf::Vector2f BaseZombie::getPosition() const {
-    return position;
+    return sf::Vector2f(body.position.x, body.position.y);
 }
 
 sf::FloatRect BaseZombie::getHitbox() const {
@@ -207,7 +215,8 @@ void BaseZombie::updateAnimation(float deltaTime) {
 
             if (currentAttackFrame < attackTextures.size()) {
                 sprite.setTexture(attackTextures[currentAttackFrame]);
-            } else {
+            }
+            else {
                 attacking = false;
                 m_hasDealtDamageInAttack = false;
                 setState(ZombieState::WALK);
@@ -216,7 +225,8 @@ void BaseZombie::updateAnimation(float deltaTime) {
                 }
             }
         }
-    } else {
+    }
+    else {
         animationTimer += deltaTime;
         if (animationTimer >= animationFrameTime) {
             animationTimer -= animationFrameTime;
@@ -240,20 +250,21 @@ float BaseZombie::tryDealDamage() {
     return 0.0f;
 }
 
-void BaseZombie::loadTextureSet(std::vector<sf::Texture>& textures, const std::string& basePath, 
-                                const std::string& prefix, int count, bool isBoss) {
+void BaseZombie::loadTextureSet(std::vector<sf::Texture>& textures, const std::string& basePath,
+    const std::string& prefix, int count, bool isBoss) {
     textures.clear();
-    
+
     for (int i = 0; i < count; ++i) {
         sf::Texture texture;
         std::string filePath = basePath + "/" + prefix + "_";
-        
+
         if (i < 10) {
             filePath += "0" + std::to_string(i) + ".png";
-        } else {
+        }
+        else {
             filePath += std::to_string(i) + ".png";
         }
-        
+
         if (!texture.loadFromFile(filePath)) {
             std::cerr << "Error loading zombie texture: " << filePath << std::endl;
         }

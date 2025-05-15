@@ -1,4 +1,5 @@
 #include "LevelManager.h"
+#include "PhysicsWorld.h"
 #include <memory>
 #include <iostream>
 #include <random>
@@ -411,7 +412,9 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
             float dy = y - playerPos.y;
             if (std::sqrt(dx*dx + dy*dy) >= minDistance) break;
         } while (true);
-        zombiesToSpawn.push_back(std::make_unique<ZombieKing>(x, y));
+        auto king = std::make_unique<ZombieKing>(x, y);
+        if (physicsWorld) physicsWorld->addBody(&king->getBody(), false);
+        zombiesToSpawn.push_back(std::move(king));
 
         // Spawn other zombies (2 of each type)
         for (int i = 0; i < 2; ++i) {
@@ -430,11 +433,32 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
                 } while (true);
 
                 switch (type) {
-                    case 0: zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
-                    case 1: zombiesToSpawn.push_back(std::make_unique<ZombieCrawler>(x, y)); break;
-                    case 2: zombiesToSpawn.push_back(std::make_unique<ZombieTank>(x, y)); break;
-                    case 3: zombiesToSpawn.push_back(std::make_unique<ZombieZoom>(x, y)); break;
+                case 0: {
+                    auto z = std::make_unique<ZombieWalker>(x, y);
+                    if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                    zombiesToSpawn.push_back(std::move(z));
+                    break;
                 }
+                case 1: {
+                    auto z = std::make_unique<ZombieCrawler>(x, y);
+                    if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                    zombiesToSpawn.push_back(std::move(z));
+                    break;
+                }
+                case 2: {
+                    auto z = std::make_unique<ZombieTank>(x, y);
+                    if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                    zombiesToSpawn.push_back(std::move(z));
+                    break;
+                }
+                case 3: {
+                    auto z = std::make_unique<ZombieZoom>(x, y);
+                    if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                    zombiesToSpawn.push_back(std::move(z));
+                    break;
+                }
+                }
+
             }
         }
     } else {
@@ -456,15 +480,63 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
             } while (true);
 
             if (gameState == GameState::TUTORIAL) {
-                zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y));
+                auto z = std::make_unique<ZombieWalker>(x, y);
+                if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                zombiesToSpawn.push_back(std::move(z));
             } else {
                 int type = typeDist(gen);
                 switch (type % (currentLevel > 0 ? currentLevel : 1)) {
-                    case 0: zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
-                    case 1: if (currentLevel >= 2) zombiesToSpawn.push_back(std::make_unique<ZombieCrawler>(x, y)); else zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
-                    case 2: if (currentLevel >= 3) zombiesToSpawn.push_back(std::make_unique<ZombieTank>(x, y)); else zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
-                    case 3: if (currentLevel >= 4) zombiesToSpawn.push_back(std::make_unique<ZombieZoom>(x, y)); else zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
-                    default: zombiesToSpawn.push_back(std::make_unique<ZombieWalker>(x, y)); break;
+                case 0: {
+                    auto z = std::make_unique<ZombieWalker>(x, y);
+                    if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                    zombiesToSpawn.push_back(std::move(z));
+                    break;
+                }
+                case 1: {
+                    if (currentLevel >= 2) {
+                        auto z = std::make_unique<ZombieCrawler>(x, y);
+                        if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                        zombiesToSpawn.push_back(std::move(z));
+                    }
+                    else {
+                        auto z = std::make_unique<ZombieWalker>(x, y);
+                        if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                        zombiesToSpawn.push_back(std::move(z));
+                    }
+                    break;
+                }
+                case 2: {
+                    if (currentLevel >= 3) {
+                        auto z = std::make_unique<ZombieTank>(x, y);
+                        if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                        zombiesToSpawn.push_back(std::move(z));
+                    }
+                    else {
+                        auto z = std::make_unique<ZombieWalker>(x, y);
+                        if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                        zombiesToSpawn.push_back(std::move(z));
+                    }
+                    break;
+                }
+                case 3: {
+                    if (currentLevel >= 4) {
+                        auto z = std::make_unique<ZombieZoom>(x, y);
+                        if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                        zombiesToSpawn.push_back(std::move(z));
+                    }
+                    else {
+                        auto z = std::make_unique<ZombieWalker>(x, y);
+                        if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                        zombiesToSpawn.push_back(std::move(z));
+                    }
+                    break;
+                }
+                default: {
+                    auto z = std::make_unique<ZombieWalker>(x, y);
+                    if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
+                    zombiesToSpawn.push_back(std::move(z));
+                    break;
+                }
                 }
             }
         }
@@ -638,4 +710,8 @@ sf::Vector2f LevelManager::getMapSize() const {
         default:
             return sf::Vector2f(1000, 1250);
     }
+}
+
+void LevelManager::setPhysicsWorld(PhysicsWorld* world) {
+    physicsWorld = world;
 }

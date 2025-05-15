@@ -4,13 +4,13 @@
 ZombieZoom::ZombieZoom(float x, float y)
     : BaseZombie(x, y, 25.0f, 6.0f, 90.0f, 35.0f, 1.5f) {
     loadTextures();
-    
+
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
         sf::Vector2u textureSize = walkTextures[0].getSize();
         sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
         sprite.setScale(0.38f, 0.38f);
-        sprite.setPosition(position);
+        sprite.setPosition(body.position.x, body.position.y);
     }
 }
 

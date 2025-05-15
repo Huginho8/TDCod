@@ -34,6 +34,8 @@ enum class TransitionState {
     FADE_OUT
 };
 
+class PhysicsWorld;
+
 class LevelManager {
 public:
     LevelManager();
@@ -75,7 +77,10 @@ public:
     
     sf::Vector2f getMapSize() const;
 
+    void setPhysicsWorld(PhysicsWorld* world);
+
 private:
+    PhysicsWorld* physicsWorld = nullptr;
     GameState gameState;
     int currentLevel;
     int previousLevel;

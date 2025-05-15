@@ -1,6 +1,7 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 
+#include "Entity.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
 #include <vector>
@@ -20,9 +21,9 @@ enum class WeaponType {
     FLAMETHROWER
 };
 
-class Player {
+class Player : public Entity {
 public:
-    Player();
+    Player(Vec2 position);
     
     void update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize, sf::Vector2f worldMousePosition);
     void draw(sf::RenderWindow& window);
@@ -58,9 +59,9 @@ public:
     
     void reset();
     
-    // New method to set weapon
     void setWeapon(WeaponType weapon);
 
+    void syncSpriteWithBody();
 private:
     void loadTextures();
     void updateAnimation(float deltaTime);
@@ -68,7 +69,6 @@ private:
     void updateStamina(float deltaTime);
     
     sf::Sprite sprite;
-    sf::Vector2f velocity;
     PlayerState currentState;
     
     float speed;

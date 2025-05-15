@@ -4,7 +4,12 @@
 #include <random>
 #include <cmath>
 
-Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0), zombiesToNextLevel(15) {
+Game::Game()
+    : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"),
+    player(Vec2(400, 300)), // <-- Add this!
+    points(0),
+    zombiesToNextLevel(15) 
+{
     window.setFramerateLimit(60);
     
     background.setFillColor(sf::Color(50, 50, 50));
@@ -37,6 +42,9 @@ Game::Game() : window(sf::VideoMode(800, 600), "Echoes of Valkyrie"), points(0),
     gameView.setSize(800, 600);
     gameView.setCenter(400, 300);
     
+    physics.addBody(&player.getBody(), false);
+
+    levelManager.setPhysicsWorld(&physics);
     levelManager.initialize();
     
     if (!backgroundMusic.openFromFile("TDCod/Assets/Audio/atmosphere.mp3")) {
@@ -106,6 +114,7 @@ void Game::update(float deltaTime) {
 
     int currentLevel = levelManager.getCurrentLevel();
     sf::Vector2u mapSize = getMapSize(currentLevel);
+    physics.update(deltaTime);
     player.update(deltaTime, window, mapSize, worldMousePosition);
     levelManager.update(deltaTime, player);
     

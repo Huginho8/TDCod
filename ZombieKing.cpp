@@ -4,19 +4,19 @@
 
 ZombieKing::ZombieKing(float x, float y)
     : BaseZombie(x, y, 200.0f, 20.0f, 20.0f, 50.0f, 2.5f),
-      useSecondAttack(false),
-      currentAttack2Frame(0),
-      attack2Timer(0.0f),
-      specialAttackCooldown(5.0f),
-      timeSinceLastSpecialAttack(0.0f) {
+    useSecondAttack(false),
+    currentAttack2Frame(0),
+    attack2Timer(0.0f),
+    specialAttackCooldown(5.0f),
+    timeSinceLastSpecialAttack(0.0f) {
     loadTextures();
-    
+
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
         sf::Vector2u textureSize = walkTextures[0].getSize();
         sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
         sprite.setScale(0.5f, 0.5f);
-        sprite.setPosition(position);
+        sprite.setPosition(body.position.x, body.position.y);
     }
 }
 
@@ -29,34 +29,43 @@ void ZombieKing::update(float deltaTime, sf::Vector2f playerPosition) {
     timeSinceLastAttack += deltaTime;
     timeSinceLastSpecialAttack += deltaTime;
 
-    sf::Vector2f direction = playerPosition - position;
-    float distance = std::sqrt(direction.x * direction.x + direction.y * direction.y);
+    Vec2 playerPos(playerPosition.x, playerPosition.y);
+    Vec2 direction = playerPos - body.position;
+    float distance = direction.length();
 
     if (distance <= attackRange && !attacking) {
         if (timeSinceLastSpecialAttack >= specialAttackCooldown && useSecondAttack) {
             attack();
             timeSinceLastSpecialAttack = 0.0f;
             useSecondAttack = false;
-        } else if (timeSinceLastAttack >= attackCooldown) {
+        }
+        else if (timeSinceLastAttack >= attackCooldown) {
             attack();
             timeSinceLastAttack = 0.0f;
             useSecondAttack = true;
         }
-    } else if (!attacking) {
+        body.velocity = Vec2(0, 0);
+    }
+    else if (!attacking) {
         if (distance > 5.0f) {
             setState(ZombieState::WALK);
 
-            if (distance > 0) {
-                direction /= distance;
-            }
-
-            position.x += direction.x * speed * deltaTime;
-            position.y += direction.y * speed * deltaTime;
-            sprite.setPosition(position);
-
-            float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
-            sprite.setRotation(angle - 90.0f);
+            if (distance > 0) direction.normalize();
+            body.velocity = direction * speed;
         }
+        else {
+            body.velocity = Vec2(0, 0);
+        }
+    }
+    else {
+        body.velocity = Vec2(0, 0);
+    }
+
+    // Sync sprite position and rotation with physics body
+    sprite.setPosition(body.position.x, body.position.y);
+    if (distance > 1.0f) {
+        float angle = std::atan2(direction.y, direction.x) * 180 / 3.14159265f;
+        sprite.setRotation(angle - 90.0f);
     }
 
     updateAnimation(deltaTime);
