@@ -57,10 +57,30 @@ Player::Player(Vec2 position)
         walkingSound.setLoop(true);
         walkingSound.setVolume(90);
     }
+
+    if (!pistolShotBuffer.loadFromFile("TDCod/Assets/Audio/pistol_shot.mp3")) {
+        std::cerr << "Error loading pistol shot sound!" << std::endl;
+    } else {
+        pistolShotSound.setBuffer(pistolShotBuffer);
+        pistolShotSound.setVolume(50);
+    }
+
+    if (!rifleShotBuffer.loadFromFile("TDCod/Assets/Audio/rifle_shot.mp3")) {
+        std::cerr << "Error loading rifle shot sound!" << std::endl;
+    } else {
+        rifleShotSound.setBuffer(rifleShotBuffer);
+        rifleShotSound.setVolume(50);
+    }
+
+    if (!flamethrowerShotBuffer.loadFromFile("TDCod/Assets/Audio/flamethrower.mp3")) {
+        std::cerr << "Error loading flamethrower sound!" << std::endl;
+    } else {
+        flamethrowerShotSound.setBuffer(flamethrowerShotBuffer);
+        flamethrowerShotSound.setVolume(50);
+    }
 }
 
 void Player::loadTextures() {
-    // Knife textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/Hero/HeroKnife/HeroIdle/Idle_Knife_00" + std::to_string(i) + ".png";
@@ -86,7 +106,6 @@ void Player::loadTextures() {
         knifeAttackTextures.push_back(texture);
     }
 
-    // Bat textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/Hero/HeroBat/HeroIdle/Idle_Bat_00" + std::to_string(i) + ".png";
@@ -112,7 +131,6 @@ void Player::loadTextures() {
         batAttackTextures.push_back(texture);
     }
 
-    // Pistol textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/Hero/HeroPistol/HeroIdle/Idle_gun_00" + std::to_string(i) + ".png";
@@ -138,7 +156,6 @@ void Player::loadTextures() {
         pistolAttackTextures.push_back(texture);
     }
 
-    // Rifle textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/Hero/HeroRifle/HeroIdle/Idle_riffle_00" + std::to_string(i) + ".png";
@@ -164,7 +181,6 @@ void Player::loadTextures() {
         rifleAttackTextures.push_back(texture);
     }
 
-    // Flamethrower textures
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/Hero/HeroFlame/HeroIdle/Idle_firethrower_00" + std::to_string(i) + ".png";
@@ -190,7 +206,6 @@ void Player::loadTextures() {
         flamethrowerAttackTextures.push_back(texture);
     }
 
-    // Death textures
     for (int i = 0; i < 6; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/Hero/HeroDeath/death_000" + std::to_string(i) + "_Man.png";
@@ -228,12 +243,12 @@ void Player::setWeapon(WeaponType weapon) {
 
 float Player::getAttackDamage() const {
     switch (currentWeapon) {
-        case WeaponType::KNIFE: return 10.0f;
-        case WeaponType::BAT: return 15.0f;
-        case WeaponType::PISTOL: return 20.0f;
-        case WeaponType::RIFLE: return 30.0f;
-        case WeaponType::FLAMETHROWER: return 50.0f;
-        default: return 10.0f;
+        case WeaponType::KNIFE: return 20.0f;
+        case WeaponType::BAT: return 30.0f;
+        case WeaponType::PISTOL: return 25.0f;
+        case WeaponType::RIFLE: return 40.0f;
+        case WeaponType::FLAMETHROWER: return 60.0f;
+        default: return 20.0f;
     }
 }
 
@@ -385,7 +400,6 @@ void Player::updateAnimation(float deltaTime) {
 }
 
 void Player::updateStamina(float deltaTime) {
-    // Stamina logic is handled in update()
 }
 
 void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapSize, sf::Vector2f worldMousePosition) {
@@ -482,11 +496,33 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     }
     
     if (attacking) {
-        sf::Vector2f attackOffset = sf::Vector2f(
-            std::cos(angleToMouseDegrees * 3.14159265f / 180) * 30.0f,
-            std::sin(angleToMouseDegrees * 3.14159265f / 180) * 30.0f
-        );
-        float attackBoxSize = 60.0f;
+        sf::Vector2f attackOffset;
+        float attackBoxSize;
+        switch (currentWeapon) {
+            case WeaponType::KNIFE:
+            case WeaponType::BAT:
+                attackOffset = sf::Vector2f(
+                    std::cos(angleToMouseDegrees * 3.14159265f / 180) * 30.0f,
+                    std::sin(angleToMouseDegrees * 3.14159265f / 180) * 30.0f
+                );
+                attackBoxSize = 60.0f;
+                break;
+            case WeaponType::PISTOL:
+            case WeaponType::RIFLE:
+                attackOffset = sf::Vector2f(
+                    std::cos(angleToMouseDegrees * 3.14159265f / 180) * 50.0f,
+                    std::sin(angleToMouseDegrees * 3.14159265f / 180) * 50.0f
+                );
+                attackBoxSize = 40.0f;
+                break;
+            case WeaponType::FLAMETHROWER:
+                attackOffset = sf::Vector2f(
+                    std::cos(angleToMouseDegrees * 3.14159265f / 180) * 80.0f,
+                    std::sin(angleToMouseDegrees * 3.14159265f / 180) * 80.0f
+                );
+                attackBoxSize = 100.0f;
+                break;
+        }
         attackBounds = sf::FloatRect(
             playerPosition.x + attackOffset.x - (attackBoxSize / 2.0f),
             playerPosition.y + attackOffset.y - (attackBoxSize / 2.0f),
@@ -534,37 +570,29 @@ sf::Sprite& Player::getSprite() {
 }
 
 void Player::attack() {
-    std::cout << "[DEBUG] attack() called: attacking=" << attacking
-        << ", dead=" << dead
-        << ", timeSinceLastMeleeAttack=" << timeSinceLastMeleeAttack
-        << ", meleeAttackCooldown=" << meleeAttackCooldown
-        << std::endl;
-
     if (!attacking && !dead && timeSinceLastMeleeAttack >= meleeAttackCooldown) {
-        std::cout << "[DEBUG] attack triggered!" << std::endl;
-        attacking = true;
-        currentAttackFrame = 0;
-        attackTimer = 0.0f;
-        setState(PlayerState::ATTACK);
-        timeSinceLastMeleeAttack = 0.0f;
+        if (currentWeapon == WeaponType::KNIFE || currentWeapon == WeaponType::BAT) {
+            attacking = true;
+            currentAttackFrame = 0;
+            attackTimer = 0.0f;
+            setState(PlayerState::ATTACK);
+            timeSinceLastMeleeAttack = 0.0f;
 
-        std::vector<sf::Texture>* attackTextures = nullptr;
-        switch (currentWeapon) {
-        case WeaponType::KNIFE: attackTextures = &knifeAttackTextures; break;
-        case WeaponType::BAT: attackTextures = &batAttackTextures; break;
-        case WeaponType::PISTOL: attackTextures = &pistolAttackTextures; break;
-        case WeaponType::RIFLE: attackTextures = &rifleAttackTextures; break;
-        case WeaponType::FLAMETHROWER: attackTextures = &flamethrowerAttackTextures; break;
-        }
-        if (attackTextures && !attackTextures->empty()) {
-            sprite.setTexture((*attackTextures)[currentAttackFrame]);
-        }
+            std::vector<sf::Texture>* attackTextures = nullptr;
+            switch (currentWeapon) {
+                case WeaponType::KNIFE: attackTextures = &knifeAttackTextures; break;
+                case WeaponType::BAT: attackTextures = &batAttackTextures; break;
+                default: break;
+            }
+            if (attackTextures && !attackTextures->empty()) {
+                sprite.setTexture((*attackTextures)[currentAttackFrame]);
+            }
 
-        knifeAttackSound.stop();
-        knifeAttackSound.play();
+            knifeAttackSound.stop();
+            knifeAttackSound.play();
+        }
     }
 }
-
 
 void Player::render(sf::RenderWindow& window) {
     draw(window);
@@ -625,7 +653,6 @@ void Player::syncSpriteWithBody() {
     sprite.setPosition(body.position.x, body.position.y);
 }
 
-// Returns a Vec2 rotated by angleRadians
 Vec2 rotateVec2(const Vec2& v, float angleRadians) {
     float cosA = std::cos(angleRadians);
     float sinA = std::sin(angleRadians);
@@ -636,48 +663,64 @@ Vec2 rotateVec2(const Vec2& v, float angleRadians) {
 }
 
 void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld) {
-    // Only allow shooting for gun-type weapons
-    if (currentWeapon != WeaponType::PISTOL && currentWeapon != WeaponType::RIFLE)
-        return;
+    if (timeSinceLastShot < fireCooldown || dead) return;
 
-    // Set fireCooldown based on weapon
-    switch (currentWeapon) {
-    case WeaponType::PISTOL: fireCooldown = 0.3f; break;
-    case WeaponType::RIFLE: fireCooldown = 0.1f; break;
-    default: fireCooldown = 0.5f; break;
-    }
-
-    // Weapon-specific bullet properties
-    float bulletSpeed = 500.f;
-    float bulletMass = 1.0f;
-    int maxPenetrations = 1;
-    float inaccuracyDegrees = 5.0f;
+    float bulletDamage;
+    float bulletSpeed;
+    float bulletMass;
+    int maxPenetrations;
+    float inaccuracyDegrees;
 
     switch (currentWeapon) {
-    case WeaponType::PISTOL:
-        bulletSpeed = 1000.f;
-        bulletMass = 1.0f;
-        maxPenetrations = 1;
-        inaccuracyDegrees = 2.0f;
-        break;
-    case WeaponType::RIFLE:
-        bulletSpeed = 1200.f;
-        bulletMass = 1.5f;
-        maxPenetrations = 2;
-        inaccuracyDegrees = 3.0f;
-        break;
-    default:
-        return;
+        case WeaponType::PISTOL:
+            bulletDamage = 25.0f;
+            bulletSpeed = 1000.0f;
+            bulletMass = 1.0f;
+            maxPenetrations = 1;
+            inaccuracyDegrees = 2.0f;
+            fireCooldown = 0.3f;
+            pistolShotSound.play();
+            attacking = true;
+            currentAttackFrame = 0;
+            attackTimer = 0.0f;
+            setState(PlayerState::ATTACK);
+            break;
+        case WeaponType::RIFLE:
+            bulletDamage = 40.0f;
+            bulletSpeed = 1200.0f;
+            bulletMass = 1.5f;
+            maxPenetrations = 2;
+            inaccuracyDegrees = 3.0f;
+            fireCooldown = 0.1f;
+            rifleShotSound.play();
+            attacking = true;
+            currentAttackFrame = 0;
+            attackTimer = 0.0f;
+            setState(PlayerState::ATTACK);
+            break;
+        case WeaponType::FLAMETHROWER:
+            bulletDamage = 60.0f;
+            bulletSpeed = 800.0f;
+            bulletMass = 2.0f;
+            maxPenetrations = 3;
+            inaccuracyDegrees = 5.0f;
+            fireCooldown = 0.05f;
+            flamethrowerShotSound.play();
+            attacking = true;
+            currentAttackFrame = 0;
+            attackTimer = 0.0f;
+            setState(PlayerState::ATTACK);
+            break;
+        default:
+            return;
     }
 
-    // Calculate direction
     sf::Vector2f playerPos = sprite.getPosition();
     sf::Vector2f dir = target - playerPos;
     float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
     if (len == 0) return;
-    dir /= len; // Normalize
+    dir /= len;
 
-    // Add inaccuracy
     float inaccuracyRadians = inaccuracyDegrees * 3.14159265f / 180.0f;
     static std::random_device rd;
     static std::mt19937 gen(rd());
@@ -686,11 +729,8 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld) {
 
     Vec2 velocity = rotateVec2(Vec2(dir.x, dir.y), angle) * bulletSpeed;
 
-    // Create and add bullet
-    Bullet* bullet = new Bullet(Vec2(playerPos.x, playerPos.y), velocity, bulletMass, maxPenetrations);
+    Bullet* bullet = new Bullet(Vec2(playerPos.x, playerPos.y), velocity, bulletDamage, bulletMass, maxPenetrations);
     physicsWorld.addBody(&bullet->getBody(), false);
 
-    // Reset shot timer
     timeSinceLastShot = 0.0f;
 }
-
