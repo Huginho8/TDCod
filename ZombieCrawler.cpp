@@ -8,7 +8,7 @@ ZombieCrawler::ZombieCrawler(float x, float y)
     if (!walkTextures.empty()) {
         sprite.setTexture(walkTextures[0]);
         sf::Vector2u textureSize = walkTextures[0].getSize();
-        sprite.setOrigin(textureSize.x / 2.0f, textureSize.y / 2.0f);
+        sprite.setOrigin(textureSize.x / 2.0f, (textureSize.y / 2.0f) - 150);
         sprite.setScale(0.35f, 0.35f);
         sprite.setPosition(body.position.x, body.position.y);
     }
@@ -24,7 +24,7 @@ void ZombieCrawler::loadTextures() {
         }
         walkTextures.push_back(texture);
     }
-
+    
     for (int i = 0; i < 8; ++i) {
         sf::Texture texture;
         std::string filePath = "TDCod/Assets/ZombieCrawler/Attack/Attack1_00";
