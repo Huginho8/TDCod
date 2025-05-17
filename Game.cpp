@@ -58,6 +58,10 @@ Game::Game()
     } else {
         zombieBiteSound.setBuffer(zombieBiteBuffer);
     }
+
+    if (!Bullet::bulletTexture.loadFromFile("TDCod/Assets/WeaponsItems/Bullet/Fire_small_asset.png")) {
+        std::cerr << "Failed to load bullet texture!" << std::endl;
+    }
 }
 
 void Game::run() {
@@ -109,7 +113,7 @@ void Game::processInput() {
                 // Check weapon type
                 if (player.getCurrentWeapon() == WeaponType::PISTOL || player.getCurrentWeapon() == WeaponType::RIFLE) {
                     if (player.timeSinceLastShot >= player.fireCooldown) {
-                        player.shoot(worldMousePosition, physics);
+                        player.shoot(worldMousePosition, physics, bullets);
                     }
                 }
                 else {
@@ -128,6 +132,19 @@ void Game::update(float deltaTime) {
     sf::Vector2u mapSize = getMapSize(currentLevel);
     physics.update(deltaTime);
     player.update(deltaTime, window, mapSize, worldMousePosition);
+    // Update bullets
+    for (auto it = bullets.begin(); it != bullets.end(); ) {
+        (*it)->update(deltaTime);
+
+        if (!(*it)->isAlive()) {
+            physics.removeBody(&(*it)->getBody()); // remove from physics first
+            it = bullets.erase(it); // unique_ptr deletes the bullet automatically
+        }
+        else {
+            ++it;
+        }
+    }
+
     levelManager.update(deltaTime, player);
     
     checkZombiePlayerCollisions();
@@ -164,6 +181,9 @@ void Game::render() {
         int currentLevel = levelManager.getCurrentLevel();
         window.draw(getMapSprite(currentLevel));
         levelManager.render(window);
+        for (const auto& bullet : bullets) {
+            bullet->render(window); 
+        }
         player.render(window);
     }
 

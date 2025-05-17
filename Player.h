@@ -3,6 +3,7 @@
 
 #include "PhysicsWorld.h"
 #include "Entity.h"
+#include "Bullet.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
 #include <vector>
@@ -62,7 +63,7 @@ public:
     
     WeaponType getCurrentWeapon() const { return currentWeapon; }
     void setWeapon(WeaponType weapon);
-    void shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld);
+    void shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::vector<std::unique_ptr<Bullet>>& bullets);
 
     float timeSinceLastShot = 0.0f;
     float fireCooldown = 0.0f; // Time (in seconds) between shots

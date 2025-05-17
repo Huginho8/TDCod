@@ -22,6 +22,8 @@ public:
     sf::Vector2u getMapSize(int level); // Added to get map size dynamically
 
 private:
+    std::vector<std::unique_ptr<Bullet>> bullets;
+
     sf::RenderWindow window;
     Player player;
     LevelManager levelManager;

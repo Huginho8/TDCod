@@ -628,7 +628,7 @@ Vec2 rotateVec2(const Vec2& v, float angleRadians) {
     );
 }
 
-void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld) {
+void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::vector<std::unique_ptr<Bullet>>& bullets) {
     // Only allow shooting for gun-type weapons
     if (currentWeapon != WeaponType::PISTOL && currentWeapon != WeaponType::RIFLE)
         return;
@@ -665,6 +665,7 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld) {
 
     // Calculate direction
     sf::Vector2f playerPos = sprite.getPosition();
+    float playerRadius = getBody().getCircleShape().getRadius();
     sf::Vector2f dir = target - playerPos;
     float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
     if (len == 0) return;
@@ -679,9 +680,12 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld) {
 
     Vec2 velocity = rotateVec2(Vec2(dir.x, dir.y), angle) * bulletSpeed;
 
+    sf::Vector2f bulletSpawnPos = playerPos + dir * playerRadius;
+
     // Create and add bullet
-    Bullet* bullet = new Bullet(Vec2(playerPos.x, playerPos.y), velocity, bulletMass, maxPenetrations);
+    auto bullet = std::make_unique<Bullet>(Vec2(bulletSpawnPos.x, bulletSpawnPos.y), velocity, bulletMass, maxPenetrations);
     physicsWorld.addBody(&bullet->getBody(), false);
+    bullets.push_back(std::move(bullet));
 
     // Reset shot timer
     timeSinceLastShot = 0.0f;

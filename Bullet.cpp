@@ -1,6 +1,8 @@
 #include "Bullet.h"
 #include <iostream>
 
+sf::Texture Bullet::bulletTexture;
+
 Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations)
     : Entity(EntityType::Bullet, position, Vec2(8.f, 8.f), false, mass, true),
     remainingPenetrations(maxPenetrations)
@@ -13,16 +15,8 @@ Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations)
     body.getCircleShape().setFillColor(sf::Color::Yellow);
     
     // Load texture for bullet
-    if (!textureLoaded) {
-        if (!texture.loadFromFile("TDCod/Assets/Textures/bullet.png")) {
-            std::cerr << "Failed to load bullet texture!" << std::endl;
-        }
-        else {
-            textureLoaded = true;
-        }
-    }
-    sprite.setTexture(texture);
-    sprite.setOrigin(texture.getSize().x / 2.f, texture.getSize().y / 2.f);
+    sprite.setTexture(Bullet::bulletTexture);
+    sprite.setOrigin(Bullet::bulletTexture.getSize().x / 2.f + 200, Bullet::bulletTexture.getSize().y / 2.f - 10);
     sprite.setPosition(body.position.x, body.position.y);
     float angle = std::atan2(body.velocity.y, body.velocity.x) * 180.f / 3.14159f; // Get direction from velocity
     sprite.setRotation(angle);
@@ -30,7 +24,7 @@ Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations)
 }
 
 void Bullet::update(float dt) {
-    Entity::update(dt); // Add physics updates if needed
+    body.update(dt); // Add physics updates if needed
     sprite.setPosition(body.position.x, body.position.y);
     float angle = std::atan2(body.velocity.y, body.velocity.x) * 180.f / 3.14159f;
     sprite.setRotation(angle);

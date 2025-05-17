@@ -2,6 +2,7 @@
 
 #include "Entity.h"
 #include <unordered_set>
+#include <SFML/Graphics.hpp>
 
 class Bullet : public Entity {
 public:
@@ -11,11 +12,10 @@ public:
     void onCollision(Entity* other) override;
     void render(sf::RenderWindow& window) override;
 
+    static sf::Texture bulletTexture;
 private:
     int remainingPenetrations;
     std::unordered_set<Entity*> hitEntities;
 
     sf::Sprite sprite;
-    static sf::Texture texture; // Shared texture
-    static bool textureLoaded;
 };
