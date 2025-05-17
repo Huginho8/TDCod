@@ -9,8 +9,13 @@ public:
 
     void update(float dt) override;
     void onCollision(Entity* other) override;
+    void render(sf::RenderWindow& window) override;
 
 private:
     int remainingPenetrations;
     std::unordered_set<Entity*> hitEntities;
+
+    sf::Sprite sprite;
+    static sf::Texture texture; // Shared texture
+    static bool textureLoaded;
 };

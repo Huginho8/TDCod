@@ -534,14 +534,7 @@ sf::Sprite& Player::getSprite() {
 }
 
 void Player::attack() {
-    std::cout << "[DEBUG] attack() called: attacking=" << attacking
-        << ", dead=" << dead
-        << ", timeSinceLastMeleeAttack=" << timeSinceLastMeleeAttack
-        << ", meleeAttackCooldown=" << meleeAttackCooldown
-        << std::endl;
-
     if (!attacking && !dead && timeSinceLastMeleeAttack >= meleeAttackCooldown) {
-        std::cout << "[DEBUG] attack triggered!" << std::endl;
         attacking = true;
         currentAttackFrame = 0;
         attackTimer = 0.0f;
