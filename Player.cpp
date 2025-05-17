@@ -641,6 +641,7 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::
     }
 
     // Weapon-specific bullet properties
+    float bulletDamage = 25.f; // Default
     float bulletSpeed = 500.f;
     float bulletMass = 1.0f;
     int maxPenetrations = 1;
@@ -648,12 +649,14 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::
 
     switch (currentWeapon) {
     case WeaponType::PISTOL:
+        bulletDamage = 25.f;
         bulletSpeed = 1000.f;
         bulletMass = 1.0f;
         maxPenetrations = 1;
         inaccuracyDegrees = 2.0f;
         break;
     case WeaponType::RIFLE:
+        bulletDamage = 35.f;
         bulletSpeed = 1200.f;
         bulletMass = 1.5f;
         maxPenetrations = 2;
@@ -683,7 +686,7 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::
     sf::Vector2f bulletSpawnPos = playerPos + dir * playerRadius;
 
     // Create and add bullet
-    auto bullet = std::make_unique<Bullet>(Vec2(bulletSpawnPos.x, bulletSpawnPos.y), velocity, bulletMass, maxPenetrations);
+    auto bullet = std::make_unique<Bullet>(Vec2(bulletSpawnPos.x, bulletSpawnPos.y), velocity, bulletMass, maxPenetrations, bulletDamage);
     physicsWorld.addBody(&bullet->getBody(), false);
     bullets.push_back(std::move(bullet));
 

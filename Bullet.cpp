@@ -1,11 +1,13 @@
 #include "Bullet.h"
+#include "BaseZombie.h"
 #include <iostream>
 
 sf::Texture Bullet::bulletTexture;
 
-Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations)
+Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations, float damage)
     : Entity(EntityType::Bullet, position, Vec2(8.f, 8.f), false, mass, true),
-    remainingPenetrations(maxPenetrations)
+    remainingPenetrations(maxPenetrations),
+    damage(damage)
 {
     getBody().isCircle = true;
     body.isTrigger = true;
@@ -43,8 +45,13 @@ void Bullet::onCollision(Entity* other) {
     if (targetType == EntityType::Enemy) {
         // Avoid multiple hits on the same entity
         if (hitEntities.count(other)) return;
-
         hitEntities.insert(other);
+
+        // Deal damage
+        BaseZombie* zombie = dynamic_cast<BaseZombie*>(other);
+        if (zombie) {
+            zombie->takeDamage(damage); // Use bullet's damage
+        }
 
         // Calculate the mass ratio between the bullet and the enemy
         float bulletMass = body.mass;
