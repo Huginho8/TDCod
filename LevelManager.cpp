@@ -4,6 +4,7 @@
 #include <iostream>
 #include <random>
 #include <cmath>
+#include <SFML/Graphics/Text.hpp>
 
 LevelManager::LevelManager()
     : gameState(GameState::TUTORIAL),
@@ -28,17 +29,20 @@ LevelManager::LevelManager()
       roundStarted(false)
 {
     tutorialDialogs = {
-        "Welcome to Echoes of Valkyrie! I'm Dr. Mendel, the lead researcher.",
-        "The infection is spreading rapidly. We need your help!",
-        "Use WASD keys to move around. Press SHIFT to sprint, but watch your stamina.",
-        "Left click to attack zombies with your knife.",
-        "Defeat zombies to earn points and progress to the next level.",
-        "Good luck! The fate of humanity depends on you.",
-        "Complete this tutorial by exploring the area and eliminating all zombies."
+        "Welcome to Echoes of Valkyrie! I'm Dr. Mendel, your guide.",
+        "The infection is spreading fast. You must stop the zombies!",
+        "Use WASD to move. Press SHIFT to sprint (watch stamina).",
+        "Left-click to attack with your knife in this tutorial.",
+        "Defeat zombies to progress. Each level grants a new weapon:",
+        "Level 1: Baseball Bat, stronger melee attacks.",
+        "Level 2: Pistol, for ranged combat.",
+        "Level 3: Rifle, faster and more powerful shots.",
+        "Level 4: Flamethrower, devastating area damage.",
+        "Clear all zombies to complete the tutorial!"
     };
     
     if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
-        std::cerr << "Error loading font for dialog! Trying fallback." << std::endl;
+        std::cerr << "Error loading font for dialog!" << std::endl;
     }
     
     dialogBox.setSize(sf::Vector2f(600, 150));
@@ -67,6 +71,45 @@ LevelManager::LevelManager()
     levelStartText.setCharacterSize(48);
     levelStartText.setFillColor(sf::Color::White);
     levelStartText.setPosition(300, 500);
+}
+
+std::string LevelManager::wrapText(const std::string& text, unsigned int maxWidth) {
+    std::string wrapped;
+    std::string currentLine;
+    std::string word;
+    sf::Text tempText;
+    tempText.setFont(font);
+    tempText.setCharacterSize(18);
+
+    for (char c : text) {
+        if (c == ' ' || c == '\n') {
+            tempText.setString(currentLine + word);
+            if (tempText.getLocalBounds().width > maxWidth) {
+                wrapped += currentLine + "\n";
+                currentLine.clear();
+            } else {
+                currentLine += word + " ";
+            }
+            word.clear();
+            if (c == '\n') {
+                wrapped += currentLine + "\n";
+                currentLine.clear();
+            }
+        } else {
+            word += c;
+        }
+    }
+
+    tempText.setString(currentLine + word);
+    if (!word.empty()) {
+        if (tempText.getLocalBounds().width > maxWidth) {
+            wrapped += currentLine + "\n" + word;
+        } else {
+            wrapped += currentLine + word;
+        }
+    }
+
+    return wrapped;
 }
 
 void LevelManager::initialize() {
@@ -165,7 +208,7 @@ void LevelManager::update(float deltaTime, Player& player) {
             updateZombies(deltaTime, player);
 
             if (roundStarted && zombiesKilledInRound == totalZombiesInRound && zombiesSpawnedInRound == totalZombiesInRound && !inRoundTransition && !levelTransitioning && transitionState == TransitionState::NONE) {
-                if (currentLevel == 4 && currentRound == 1) { // After Level 4, Round 2
+                if (currentLevel == 4 && currentRound == 1) {
                     setGameState(GameState::BOSS_FIGHT);
                     loadLevel(5);
                     player.setWeapon(WeaponType::FLAMETHROWER);
@@ -177,6 +220,7 @@ void LevelManager::update(float deltaTime, Player& player) {
                 } else {
                     int nextLevel = currentLevel + 1;
                     switch (nextLevel) {
+                        case 1: player.setWeapon(WeaponType::BAT); break;
                         case 2: player.setWeapon(WeaponType::PISTOL); break;
                         case 3: player.setWeapon(WeaponType::RIFLE); break;
                         case 4: player.setWeapon(WeaponType::FLAMETHROWER); break;
@@ -201,6 +245,10 @@ void LevelManager::update(float deltaTime, Player& player) {
 
     if (doctor) {
         doctor->update(deltaTime, player.getPosition());
+    }
+
+    if (player.isDead()) {
+        setGameState(GameState::GAME_OVER);
     }
 }
 
@@ -330,7 +378,7 @@ void LevelManager::loadLevel(int levelNumber) {
     roundStarted = false;
 
     bool triggerTransition = false;
-    if ((previousLevel >= 1 && previousLevel <= 3) || (previousLevel == 4 && currentLevel == 5)) {
+    if ((previousLevel >= 0 && previousLevel <= 3) || (previousLevel == 4 && currentLevel == 5)) {
         triggerTransition = true;
     }
 
@@ -350,7 +398,7 @@ int LevelManager::getTotalRoundsForLevel(int level) const {
         case 2: return 2;
         case 3: return 2;
         case 4: return 2;
-        case 5: return 1; // Single boss fight
+        case 5: return 1;
         default: return 1;
     }
 }
@@ -388,18 +436,17 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> sideDist(0, 3); // 0: left, 1: right, 2: top, 3: bottom
-    std::uniform_int_distribution<> typeDist(0, 3); // For non-boss levels, up to 4 types
+    std::uniform_int_distribution<> sideDist(0, 3);
+    std::uniform_int_distribution<> typeDist(0, 3);
 
     sf::Vector2f mapSize = getMapSize();
     float spawnMargin = 50.0f;
 
     if (gameState == GameState::BOSS_FIGHT) {
-        totalZombiesInRound = 10; // 1 ZombieKing + 9 other zombies
+        totalZombiesInRound = 10;
         float x, y;
         float minDistance = 200.0f;
 
-        // Spawn ZombieKing
         do {
             int side = sideDist(gen);
             switch (side) {
@@ -416,7 +463,6 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
         if (physicsWorld) physicsWorld->addBody(&king->getBody(), false);
         zombiesToSpawn.push_back(std::move(king));
 
-        // Spawn other zombies (2 of each type)
         for (int i = 0; i < 2; ++i) {
             for (int type = 0; type < 4; ++type) {
                 do {
@@ -458,7 +504,6 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
                     break;
                 }
                 }
-
             }
         }
     } else {
@@ -497,8 +542,7 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
                         auto z = std::make_unique<ZombieCrawler>(x, y);
                         if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
                         zombiesToSpawn.push_back(std::move(z));
-                    }
-                    else {
+                    } else {
                         auto z = std::make_unique<ZombieWalker>(x, y);
                         if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
                         zombiesToSpawn.push_back(std::move(z));
@@ -510,8 +554,7 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
                         auto z = std::make_unique<ZombieTank>(x, y);
                         if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
                         zombiesToSpawn.push_back(std::move(z));
-                    }
-                    else {
+                    } else {
                         auto z = std::make_unique<ZombieWalker>(x, y);
                         if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
                         zombiesToSpawn.push_back(std::move(z));
@@ -523,8 +566,7 @@ void LevelManager::spawnZombies(int count, sf::Vector2f playerPos) {
                         auto z = std::make_unique<ZombieZoom>(x, y);
                         if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
                         zombiesToSpawn.push_back(std::move(z));
-                    }
-                    else {
+                    } else {
                         auto z = std::make_unique<ZombieWalker>(x, y);
                         if (physicsWorld) physicsWorld->addBody(&z->getBody(), false);
                         zombiesToSpawn.push_back(std::move(z));
@@ -553,22 +595,12 @@ void LevelManager::updateZombies(float deltaTime, const Player& player) {
     while (it != zombies.end()) {
         bool erased = false;
         if ((*it)->isDead()) {
-            physicsWorld->removeBody(&(*it)->getBody()); // Remove physics body before erasing entity
+            physicsWorld->removeBody(&(*it)->getBody());
             it = zombies.erase(it);
             erased = true;
             zombiesKilledInRound++;
-        } else if (player.isAttacking() && player.getAttackBounds().intersects((*it)->getHitbox())) {
-            (*it)->takeDamage(player.getAttackDamage());
-            if ((*it)->isDead()) {
-                physicsWorld->removeBody(&(*it)->getBody()); // Remove physics body before erasing entity
-                it = zombies.erase(it);
-                erased = true;
-                zombiesKilledInRound++;
-            }
         }
-        if (!erased) {
-            ++it;
-        }
+        ++it;
     }
 }
 
@@ -664,7 +696,7 @@ void LevelManager::showTutorialDialog(sf::RenderWindow& window) {
     dialogText.setPosition((dialogBox.getPosition().x + 10), dialogBox.getPosition().y + 10);
 
     if (currentDialogIndex < tutorialDialogs.size()) {
-        dialogText.setString(tutorialDialogs[currentDialogIndex]);
+        dialogText.setString(wrapText(tutorialDialogs[currentDialogIndex], 580));
     }
 
     window.draw(dialogBox);
@@ -692,12 +724,12 @@ void LevelManager::advanceDialog() {
 
 int LevelManager::getZombieCountForLevel(int level, int round) {
     switch (level) {
-        case 0: return 3; // Tutorial
-        case 1: return (5 + round) / 2;
-        case 2: return 7 / 2;
-        case 3: return 7 / 2;
-        case 4: return 7 / 2;
-        case 5: return 10; // Boss fight: 1 ZombieKing + 9 others
+        case 0: return 3;
+        case 1: return 5 + round * 2;
+        case 2: return 7 + round * 2;
+        case 3: return 8 + round * 3;
+        case 4: return 10 + round * 3;
+        case 5: return 10;
         default: return 1;
     }
 }
