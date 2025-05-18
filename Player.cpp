@@ -43,6 +43,7 @@ Player::Player(Vec2 position)
         sprite.setPosition(100, 100);
     }
 
+    // Load knife attack sound
     if (!knifeAttackBuffer.loadFromFile("TDCod/Assets/Audio/knife.mp3")) {
         std::cerr << "Error loading knife attack sound!" << std::endl;
     } else {
@@ -50,6 +51,39 @@ Player::Player(Vec2 position)
         knifeAttackSound.setVolume(50);
     }
 
+    // Load bat attack sound
+    if (!batAttackBuffer.loadFromFile("TDCod/Assets/Audio/bat.mp3")) {
+        std::cerr << "Error loading bat attack sound!" << std::endl;
+    } else {
+        batAttackSound.setBuffer(batAttackBuffer);
+        batAttackSound.setVolume(50);
+    }
+
+    // Load pistol attack sound
+    if (!pistolAttackBuffer.loadFromFile("TDCod/Assets/Audio/pistolshot.mp3")) {
+        std::cerr << "Error loading pistol attack sound!" << std::endl;
+    } else {
+        pistolAttackSound.setBuffer(pistolAttackBuffer);
+        pistolAttackSound.setVolume(50);
+    }
+
+    // Load rifle attack sound
+    if (!rifleAttackBuffer.loadFromFile("TDCod/Assets/Audio/rifleshot.mp3")) {
+        std::cerr << "Error loading rifle attack sound!" << std::endl;
+    } else {
+        rifleAttackSound.setBuffer(rifleAttackBuffer);
+        rifleAttackSound.setVolume(50);
+    }
+
+    // Load flamethrower attack sound
+    if (!flamethrowerAttackBuffer.loadFromFile("TDCod/Assets/Audio/flamethrower.mp3")) {
+        std::cerr << "Error loading flamethrower attack sound!" << std::endl;
+    } else {
+        flamethrowerAttackSound.setBuffer(flamethrowerAttackBuffer);
+        flamethrowerAttackSound.setVolume(50);
+    }
+
+    // Load walking sound
     if (!walkingBuffer.loadFromFile("TDCod/Assets/Audio/walking.mp3")) {
         std::cerr << "Error loading walking sound!" << std::endl;
     } else {
@@ -542,22 +576,38 @@ void Player::attack() {
         timeSinceLastMeleeAttack = 0.0f;
 
         std::vector<sf::Texture>* attackTextures = nullptr;
+        sf::Sound* attackSound = nullptr;
         switch (currentWeapon) {
-        case WeaponType::KNIFE: attackTextures = &knifeAttackTextures; break;
-        case WeaponType::BAT: attackTextures = &batAttackTextures; break;
-        case WeaponType::PISTOL: attackTextures = &pistolAttackTextures; break;
-        case WeaponType::RIFLE: attackTextures = &rifleAttackTextures; break;
-        case WeaponType::FLAMETHROWER: attackTextures = &flamethrowerAttackTextures; break;
+        case WeaponType::KNIFE:
+            attackTextures = &knifeAttackTextures;
+            attackSound = &knifeAttackSound;
+            break;
+        case WeaponType::BAT:
+            attackTextures = &batAttackTextures;
+            attackSound = &batAttackSound;
+            break;
+        case WeaponType::PISTOL:
+            attackTextures = &pistolAttackTextures;
+            attackSound = &pistolAttackSound;
+            break;
+        case WeaponType::RIFLE:
+            attackTextures = &rifleAttackTextures;
+            attackSound = &rifleAttackSound;
+            break;
+        case WeaponType::FLAMETHROWER:
+            attackTextures = &flamethrowerAttackTextures;
+            attackSound = &flamethrowerAttackSound;
+            break;
         }
         if (attackTextures && !attackTextures->empty()) {
             sprite.setTexture((*attackTextures)[currentAttackFrame]);
         }
-
-        knifeAttackSound.stop();
-        knifeAttackSound.play();
+        if (attackSound) {
+            attackSound->stop();
+            attackSound->play();
+        }
     }
 }
-
 
 void Player::render(sf::RenderWindow& window) {
     draw(window);
@@ -690,7 +740,23 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::
     physicsWorld.addBody(&bullet->getBody(), false);
     bullets.push_back(std::move(bullet));
 
+    // Play shoot sound
+    sf::Sound* shootSound = nullptr;
+    switch (currentWeapon) {
+    case WeaponType::PISTOL:
+        shootSound = &pistolAttackSound;
+        break;
+    case WeaponType::RIFLE:
+        shootSound = &rifleAttackSound;
+        break;
+    default:
+        break; // No sound for KNIFE, BAT, FLAMETHROWER
+    }
+    if (shootSound) {
+        shootSound->stop();
+        shootSound->play();
+    }
+
     // Reset shot timer
     timeSinceLastShot = 0.0f;
 }
-

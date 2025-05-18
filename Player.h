@@ -66,7 +66,7 @@ public:
     void shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::vector<std::unique_ptr<Bullet>>& bullets);
 
     float timeSinceLastShot = 0.0f;
-    float fireCooldown = 0.0f;
+    float fireCooldown = 0.0f; // Time (in seconds) between shots
 
     void syncSpriteWithBody();
 private:
@@ -116,8 +116,10 @@ private:
     float deathTimer;
     float deathFrameTime;
     
+    // Current weapon
     WeaponType currentWeapon;
 
+    // Texture collections for each weapon
     std::vector<sf::Texture> knifeIdleTextures;
     std::vector<sf::Texture> knifeWalkingTextures;
     std::vector<sf::Texture> knifeAttackTextures;
@@ -140,17 +142,19 @@ private:
     
     std::vector<sf::Texture> deathTextures;
 
+    // Sound buffers and sounds for each weapon
     sf::SoundBuffer knifeAttackBuffer;
     sf::Sound knifeAttackSound;
+    sf::SoundBuffer batAttackBuffer;
+    sf::Sound batAttackSound;
+    sf::SoundBuffer pistolAttackBuffer;
+    sf::Sound pistolAttackSound;
+    sf::SoundBuffer rifleAttackBuffer;
+    sf::Sound rifleAttackSound;
+    sf::SoundBuffer flamethrowerAttackBuffer;
+    sf::Sound flamethrowerAttackSound;
     sf::SoundBuffer walkingBuffer;
     sf::Sound walkingSound;
-
-    sf::SoundBuffer pistolShotBuffer;
-    sf::Sound pistolShotSound;
-    sf::SoundBuffer rifleShotBuffer;
-    sf::Sound rifleShotSound;
-    sf::SoundBuffer flamethrowerShotBuffer;
-    sf::Sound flamethrowerShotSound;
 };
 
 #endif // PLAYER_H

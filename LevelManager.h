@@ -122,7 +122,6 @@ private:
     sf::SoundBuffer levelStartBuffer;
     
     int getZombieCountForLevel(int level, int round);
-    std::string wrapText(const std::string& text, unsigned int maxWidth);
     
 public:
     bool isLevelTransitionPending() const { return pendingLevelTransition; }
