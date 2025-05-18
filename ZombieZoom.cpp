@@ -2,7 +2,7 @@
 #include <iostream>
 
 ZombieZoom::ZombieZoom(float x, float y)
-    : BaseZombie(x, y, 25.0f, 6.0f, 90.0f, 35.0f, 1.5f) {
+    : BaseZombie(x, y, 25.0f, 6.0f, 90.0f, 100.0f, 1.5f) {
     loadTextures();
 
     if (!walkTextures.empty()) {

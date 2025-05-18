@@ -97,6 +97,8 @@ sf::FloatRect BaseZombie::getBounds() const {
 
 void BaseZombie::attack() {
     if (!attacking && !dead) {
+        std::cout << "Zombie is attacking!" << std::endl; // TEMP LOG
+
         attacking = true;
         currentAttackFrame = 0;
         attackTimer = 0.0f;
@@ -184,8 +186,14 @@ sf::FloatRect BaseZombie::getHitbox() const {
 void BaseZombie::setState(ZombieState newState) {
     if (currentState != newState && !dead) {
         currentState = newState;
+        currentFrame = 0;
+        animationTimer = 0.0f;
 
-        if (currentState != ZombieState::ATTACK) {
+        if (newState == ZombieState::ATTACK) {
+            currentAttackFrame = 0;
+            attackTimer = 0.0f;
+        }
+        else if (newState == ZombieState::WALK) {
             currentFrame = 0;
             animationTimer = 0.0f;
         }

@@ -3,7 +3,7 @@
 #include <cmath>
 
 ZombieKing::ZombieKing(float x, float y)
-    : BaseZombie(x, y, 200.0f, 20.0f, 20.0f, 50.0f, 2.5f),
+    : BaseZombie(x, y, 200.0f, 20.0f, 20.0f, 150.0f, 2.5f),
     useSecondAttack(false),
     currentAttack2Frame(0),
     attack2Timer(0.0f),

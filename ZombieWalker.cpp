@@ -2,7 +2,7 @@
 #include <iostream>
 
 ZombieWalker::ZombieWalker(float x, float y)
-    : BaseZombie(x, y, 30.0f, 5.0f, 50.0f, 40.0f, 2.0f) // health, attackDamage, speed, attackRange, attackCooldown
+    : BaseZombie(x, y, 30.0f, 5.0f, 50.0f, 100.0f, 2.0f) // health, attackDamage, speed, attackRange, attackCooldown
 {
     loadTextures();
 
