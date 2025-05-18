@@ -2,7 +2,7 @@
 #include <iostream>
 
 ZombieTank::ZombieTank(float x, float y)
-    : BaseZombie(x, y, 80.0f, 12.0f, 30.0f, 100.0f, 3.0f) {
+    : BaseZombie(x, y, 500.0f, 12.0f, 30.0f, 100.0f, 3.0f) {
     loadTextures();
 
     if (!walkTextures.empty()) {

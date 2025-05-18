@@ -126,18 +126,18 @@ void Doctor::draw(sf::RenderWindow& window) const {
     // window.draw(posCircle);
 
     // Debug: Draw hitbox
-    sf::RectangleShape hitboxShape;
-    sf::FloatRect hitbox = getHitbox(); // This is an AABB
-    // To center the AABB shape on the sprite's origin (cyan circle)
-    hitboxShape.setPosition(
-        sprite.getPosition().x - hitbox.width / 2.0f,
-        sprite.getPosition().y - hitbox.height / 2.0f
-    );
-    hitboxShape.setSize(sf::Vector2f(hitbox.width, hitbox.height));
-    hitboxShape.setFillColor(sf::Color(0, 255, 255, 70)); // Cyan, semi-transparent
-    hitboxShape.setOutlineColor(sf::Color::Cyan);
-    hitboxShape.setOutlineThickness(1);
-    window.draw(hitboxShape);
+    //sf::RectangleShape hitboxShape;
+    //sf::FloatRect hitbox = getHitbox(); // This is an AABB
+    //// To center the AABB shape on the sprite's origin (cyan circle)
+    //hitboxShape.setPosition(
+    //    sprite.getPosition().x - hitbox.width / 2.0f,
+    //    sprite.getPosition().y - hitbox.height / 2.0f
+    //);
+    //hitboxShape.setSize(sf::Vector2f(hitbox.width, hitbox.height));
+    //hitboxShape.setFillColor(sf::Color(0, 255, 255, 70)); // Cyan, semi-transparent
+    //hitboxShape.setOutlineColor(sf::Color::Cyan);
+    //hitboxShape.setOutlineThickness(1);
+    //window.draw(hitboxShape);
 }
 
 sf::Vector2f Doctor::getPosition() const {

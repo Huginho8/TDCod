@@ -2,7 +2,7 @@
 #include <iostream>
 
 ZombieCrawler::ZombieCrawler(float x, float y)
-    : BaseZombie(x, y, 20.0f, 3.0f, 40.0f, 100.0f, 1.0f) {
+    : BaseZombie(x, y, 100.0f, 3.0f, 40.0f, 100.0f, 1.0f) {
     loadTextures();
 
     if (!walkTextures.empty()) {

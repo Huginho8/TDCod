@@ -534,24 +534,24 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
 void Player::draw(sf::RenderWindow& window) {
     window.draw(sprite);
     
-    sf::RectangleShape mainHitboxShape;
-    sf::FloatRect mainHitbox = getHitbox();
-    mainHitboxShape.setPosition(mainHitbox.left, mainHitbox.top);
-    mainHitboxShape.setSize(sf::Vector2f(mainHitbox.width, mainHitbox.height));
-    mainHitboxShape.setFillColor(sf::Color(0, 255, 0, 70));
-    mainHitboxShape.setOutlineColor(sf::Color::Green);
-    mainHitboxShape.setOutlineThickness(1);
-    window.draw(mainHitboxShape);
+    //sf::RectangleShape mainHitboxShape;
+    //sf::FloatRect mainHitbox = getHitbox();
+    //mainHitboxShape.setPosition(mainHitbox.left, mainHitbox.top);
+    //mainHitboxShape.setSize(sf::Vector2f(mainHitbox.width, mainHitbox.height));
+    //mainHitboxShape.setFillColor(sf::Color(0, 255, 0, 70));
+    //mainHitboxShape.setOutlineColor(sf::Color::Green);
+    //mainHitboxShape.setOutlineThickness(1);
+    //window.draw(mainHitboxShape);
 
-    if (attacking) {
-        sf::RectangleShape attackRect;
-        attackRect.setPosition(attackBounds.left, attackBounds.top);
-        attackRect.setSize(sf::Vector2f(attackBounds.width, attackBounds.height));
-        attackRect.setFillColor(sf::Color(255, 0, 0, 70));
-        attackRect.setOutlineColor(sf::Color::Red);
-        attackRect.setOutlineThickness(1);
-        window.draw(attackRect);
-    }
+    //if (attacking) {
+    //    sf::RectangleShape attackRect;
+    //    attackRect.setPosition(attackBounds.left, attackBounds.top);
+    //    attackRect.setSize(sf::Vector2f(attackBounds.width, attackBounds.height));
+    //    attackRect.setFillColor(sf::Color(255, 0, 0, 70));
+    //    attackRect.setOutlineColor(sf::Color::Red);
+    //    attackRect.setOutlineThickness(1);
+    //    window.draw(attackRect);
+    //}
 }
 
 void Player::setPosition(float x, float y) {
@@ -699,14 +699,14 @@ void Player::shoot(const sf::Vector2f& target, PhysicsWorld& physicsWorld, std::
 
     switch (currentWeapon) {
     case WeaponType::PISTOL:
-        bulletDamage = 25.f;
+        bulletDamage = 15.f;
         bulletSpeed = 1000.f;
         bulletMass = 1.0f;
         maxPenetrations = 1;
         inaccuracyDegrees = 2.0f;
         break;
     case WeaponType::RIFLE:
-        bulletDamage = 35.f;
+        bulletDamage = 20.f;
         bulletSpeed = 1200.f;
         bulletMass = 1.5f;
         maxPenetrations = 2;
