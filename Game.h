@@ -6,6 +6,7 @@
 #include "Player.h"
 #include "LevelManager.h"
 #include "PhysicsWorld.h"
+#include <array>
 
 class Game {
 public:
@@ -43,7 +44,10 @@ private:
     sf::Font font;
     sf::Clock clock;
     sf::View gameView;
-    
+    // Deferred shooting request filled in processInput and handled in update
+    bool shootRequested = false;
+    sf::Vector2f shootTarget;
+
     void processInput();
     void update(float deltaTime);
     void render();
@@ -58,6 +62,25 @@ private:
     sf::Music waveStartSound;
     sf::SoundBuffer zombieBiteBuffer;
     sf::Sound zombieBiteSound;
+
+    // Player sprite-sheet textures (optional). Game will try to load them and pass to Player.
+    // For feet we support one texture per feet state (idle, walk, run, strafe left, strafe right)
+    std::array<sf::Texture,5> playerFeetStateTextures;
+
+    // Muzzle flash texture (placeholder path will be used in Game.cpp)
+    sf::Texture muzzleFlashTexture;
+    // Shared shadow texture used by player and zombies
+    sf::Texture shadowTexture;
+
+    // Upper sheets per weapon (idle, move, shoot, reload)
+    std::array<sf::Texture,4> playerPistolSheets;
+    std::array<sf::Texture,4> playerRifleSheets;
+    std::array<sf::Texture,4> playerShotgunSheets;
+
+    // Interpolation alpha between physics steps
+    float renderAlpha = 1.0f;
+    // Debug visuals
+    bool debugDrawHitboxes = false;
 };
 
 #endif // GAME_H

@@ -2,19 +2,33 @@
 #include <cmath>
 #include <iostream>
 
+// local debug logging timer
+static float g_debugLogTimer = 0.0f;
+static constexpr float g_debugLogInterval = 1.0f;
+
 void PhysicsWorld::addBody(PhysicsBody* body, bool isStatic) {
-    (isStatic ? staticBodies : dynamicBodies).push_back(body);
+    if (!body) return;
+    auto &vec = (isStatic ? staticBodies : dynamicBodies);
+    // Prevent duplicate registration
+    if (std::find(vec.begin(), vec.end(), body) != vec.end()) {
+        if (debugLogging) {
+            std::cout << "[PhysicsWorld] addBody skipped duplicate registration" << std::endl;
+        }
+        return;
+    }
+    vec.push_back(body);
 }
 
 void PhysicsWorld::removeBody(PhysicsBody* body) {
-    // Remove from dynamic bodies
+    if (!body) return;
+    // Remove from dynamic bodies (erase all instances)
     auto it_dynamic = std::remove(dynamicBodies.begin(), dynamicBodies.end(), body);
     if (it_dynamic != dynamicBodies.end()) {
         dynamicBodies.erase(it_dynamic, dynamicBodies.end());
         return;
     }
 
-    // Remove from static bodies
+    // Remove from static bodies (erase all instances)
     auto it_static = std::remove(staticBodies.begin(), staticBodies.end(), body);
     if (it_static != staticBodies.end()) {
         staticBodies.erase(it_static, staticBodies.end());
@@ -28,9 +42,39 @@ void PhysicsWorld::update(float dt) {
         body->update(dt);
     }
     resolveCollisions();
+
+    // Cleanup: remove any bodies whose owner was destroyed to prevent vector growth
+    auto deadPredicate = [](PhysicsBody* b) {
+        return (b == nullptr) || (b->owner == nullptr) || (!b->owner->isAlive());
+    };
+
+    size_t beforeDynamic = dynamicBodies.size();
+    auto itd = std::remove_if(dynamicBodies.begin(), dynamicBodies.end(), deadPredicate);
+    if (itd != dynamicBodies.end()) dynamicBodies.erase(itd, dynamicBodies.end());
+    size_t removedDynamic = beforeDynamic - dynamicBodies.size();
+
+    size_t beforeStatic = staticBodies.size();
+    auto its = std::remove_if(staticBodies.begin(), staticBodies.end(), deadPredicate);
+    if (its != staticBodies.end()) staticBodies.erase(its, staticBodies.end());
+    size_t removedStatic = beforeStatic - staticBodies.size();
+
+    if (debugLogging) {
+        g_debugLogTimer += dt;
+        if (g_debugLogTimer >= g_debugLogInterval) {
+            g_debugLogTimer = 0.0f;
+            std::cout << "[PhysicsWorld] dynamicBodies=" << dynamicBodies.size()
+                      << " staticBodies=" << staticBodies.size()
+                      << " lastCollisionChecks=" << lastCollisionChecks
+                      << " prunedDynamic=" << removedDynamic << " prunedStatic=" << removedStatic
+                      << std::endl;
+        }
+    }
 }
 
 void PhysicsWorld::resolveCollisions() {
+    // reset collision counter
+    lastCollisionChecks = 0;
+
     for (auto* a : dynamicBodies) {
         // Skip dead entities
         if (!a->owner || !a->owner->isAlive()) continue;
@@ -38,6 +82,8 @@ void PhysicsWorld::resolveCollisions() {
         for (auto* b : dynamicBodies) {
             if (a == b || !b->owner || !b->owner->isAlive()) continue;
 
+            // count this collision test
+            ++lastCollisionChecks;
             if (isColliding(a, b)) {
                 if (!a->isTrigger && !b->isTrigger) {
                     resolveDynamicCollision(*a, *b);
@@ -49,6 +95,7 @@ void PhysicsWorld::resolveCollisions() {
         for (auto* s : staticBodies) {
             if (!s->owner || !s->owner->isAlive()) continue;
 
+            ++lastCollisionChecks;
             if (isColliding(a, s)) {
                 if (!a->isTrigger && !s->isTrigger) {
                     resolveStaticCollision(*a, *s);

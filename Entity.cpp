@@ -34,4 +34,6 @@ bool Entity::isAlive() const {
 
 void Entity::destroy() {
     alive = false;
+    // clear owner to indicate body is no longer valid; PhysicsWorld will prune it
+    body.owner = nullptr;
 }
