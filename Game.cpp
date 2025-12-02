@@ -347,10 +347,6 @@ void Game::processInput() {
             if (event.key.code == sf::Keyboard::R) {
                 player.startReload();
             }
-            if (event.key.code == sf::Keyboard::Tilde) {
-                // toggle debug hitbox rendering (backtick/tilde key)
-                debugDrawHitboxes = !debugDrawHitboxes;
-            }
             // Weapon selection: make Num1 -> RIFLE, Num2 -> PISTOL (simple mapping)
             if (event.key.code == sf::Keyboard::Num1) {
                 player.setWeapon(WeaponType::RIFLE);
