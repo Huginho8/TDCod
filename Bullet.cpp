@@ -1,6 +1,59 @@
 #include "Bullet.h"
 #include "BaseZombie.h"
+#include "ExplosionProvider.hpp"
 #include <iostream>
+#include <SFML/Audio.hpp>
+
+// Local static audio resources for hit/kill sounds (lazy-loaded)
+static sf::SoundBuffer s_bHitBuf;
+static sf::SoundBuffer s_bKillBuf;
+// static sf::Sound s_hitSound;
+// static sf::Sound s_killSound;
+// static bool s_soundsLoaded = false;
+
+// small pools to allow overlapping play without cutting previous sounds
+static std::vector<sf::Sound> s_hitSoundsPool;
+static std::vector<sf::Sound> s_killSoundsPool;
+static size_t s_hitIndex = 0;
+static size_t s_killIndex = 0;
+static bool s_soundsLoaded = false;
+
+static constexpr size_t SOUND_POOL_SIZE = 8; // allow up to 8 overlapping instances
+
+static void initSoundPoolsIfNeeded() {
+    if (!s_hitSoundsPool.empty() && !s_killSoundsPool.empty()) return;
+    s_hitSoundsPool.resize(SOUND_POOL_SIZE);
+    s_killSoundsPool.resize(SOUND_POOL_SIZE);
+}
+
+static void loadHitKillSounds() {
+    if (s_soundsLoaded) return;
+    // Placeholder paths - replace with real asset paths in your project
+    const std::string hitPath = "TDCod/Assets/Audio/hit_zombie.mp3";
+    const std::string killPath = "TDCod/Assets/Audio/kill_zombie.wav";
+
+    if (!s_bHitBuf.loadFromFile(hitPath)) {
+        std::cerr << "Warning: failed to load hit sound: " << hitPath << std::endl;
+    } else {
+        initSoundPoolsIfNeeded();
+        for (auto &s : s_hitSoundsPool) {
+            s.setBuffer(s_bHitBuf);
+            s.setVolume(85.f);
+        }
+    }
+
+    if (!s_bKillBuf.loadFromFile(killPath)) {
+        std::cerr << "Warning: failed to load kill sound: " << killPath << std::endl;
+    } else {
+        initSoundPoolsIfNeeded();
+        for (auto &s : s_killSoundsPool) {
+            s.setBuffer(s_bKillBuf);
+            s.setVolume(100.f);
+        }
+    }
+
+    s_soundsLoaded = true;
+}
 
 sf::Texture Bullet::bulletTexture;
 
@@ -8,6 +61,7 @@ Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations, fl
                sf::Vector2f spriteOffsetIn, float spriteScaleIn, float rotationOffsetIn)
     : Entity(EntityType::Bullet, position, Vec2(8.f, 8.f), false, mass, true),
     remainingPenetrations(maxPenetrations),
+    initialPenetrations(maxPenetrations),
     damage(damage),
     spriteOffset(spriteOffsetIn),
     spriteScale(spriteScaleIn),
@@ -83,7 +137,27 @@ void Bullet::onCollision(Entity* other) {
         // Deal damage
         BaseZombie* zombie = dynamic_cast<BaseZombie*>(other);
         if (zombie) {
+            // ensure sounds are loaded (lazy)
+            loadHitKillSounds();
+
+            // Apply damage
             zombie->takeDamage(damage); // Use bullet's current damage
+            // Play sound only for the first penetration (i.e., if this is the initial hit)
+            if (initialPenetrations == remainingPenetrations) {
+                if (zombie->isDead()) {
+                    if (!s_killSoundsPool.empty() && s_bKillBuf.getSampleCount() > 0) {
+                        s_killSoundsPool[s_killIndex % s_killSoundsPool.size()].stop();
+                        s_killSoundsPool[s_killIndex % s_killSoundsPool.size()].play();
+                        s_killIndex = (s_killIndex + 1) % s_killSoundsPool.size();
+                    }
+                } else {
+                    if (!s_hitSoundsPool.empty() && s_bHitBuf.getSampleCount() > 0) {
+                        s_hitSoundsPool[s_hitIndex % s_hitSoundsPool.size()].stop();
+                        s_hitSoundsPool[s_hitIndex % s_hitSoundsPool.size()].play();
+                        s_hitIndex = (s_hitIndex + 1) % s_hitSoundsPool.size();
+                    }
+                }
+            }
         }
 
         // Calculate the mass ratio between the bullet and the enemy
@@ -93,6 +167,8 @@ void Bullet::onCollision(Entity* other) {
         // Apply pushback scaled by mass ratio
         float pushbackFactor = bulletMass / (bulletMass + enemyMass);  // Small pushback for heavy enemies, bigger for light enemies
         other->getBody().externalImpulse += body.velocity * 0.5f * pushbackFactor;
+
+        // Effects (blood/explosion) are handled by the zombie's hit/takeDamage logic now
 
         remainingPenetrations--;
         // After penetrating, reduce damage for next potential hit

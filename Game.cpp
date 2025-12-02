@@ -1,4 +1,7 @@
 #include "Game.h"
+#include "Explosion.hpp"
+#include "Guts.hpp"
+#include "ExplosionProvider.hpp"
 #include <iostream>
 #include <algorithm>
 #include <random>
@@ -82,6 +85,8 @@ Game::Game()
         int startLevel = levelManager.getCurrentLevel();
         sf::Vector2u mapSize = getMapSize(startLevel);
         player.setPosition(static_cast<float>(mapSize.x) / 2.0f, static_cast<float>(mapSize.y) / 2.0f);
+        // Initialize explosion ground canvas to match map pixels so decals align with world coordinates
+        Props::Explosion::setGroundCanvasSize(mapSize.x, mapSize.y);
     }
 
     if (!backgroundMusic.openFromFile("TDCod/Assets/Audio/atmosphere.mp3")) {
@@ -346,6 +351,27 @@ Game::Game()
         // not fatal
         // std::cerr << "Warning: could not load blood overlay texture" << std::endl;
     }
+
+    // Load guts texture (optional) and pass to Guts system
+    if (gutsTexture.loadFromFile("TDCod/Assets/Props/guts.png")) {
+        Guts::setTexture(gutsTexture);
+    } else if (gutsTexture.loadFromFile("TDCod/Assets/guts.png")) {
+        Guts::setTexture(gutsTexture);
+    } else {
+        // not fatal, Guts will render primitives
+    }
+
+    // Load blood particle texture (optional) and pass to Explosion system
+    if (bloodParticleTexture.loadFromFile("TDCod/Assets/Props/blood.png")) {
+        Props::Explosion::setTexture(bloodParticleTexture);
+    } else if (bloodParticleTexture.loadFromFile("TDCod/Assets/blood.png")) {
+        Props::Explosion::setTexture(bloodParticleTexture);
+    } else {
+        // not fatal, Explosion will render colored quads
+    }
+
+    // Initialize ExplosionProvider (precomputes random tables and Guts)
+    ExplosionProvider::initProvider();
 
     // Load desaturation shader (used to grey-out world as health decreases)
     const std::string fragShader = R"(
@@ -802,6 +828,10 @@ void Game::update(float deltaTime) {
 
     levelManager.update(deltaTime, player);
 
+    // Update explosion and guts particle systems
+    Props::Explosion::updateAll(deltaTime);
+    Guts::updateAll(deltaTime);
+
     // If player died this frame, notify zombies once to stop attacking/moving
     if (player.isDead() && !playerDeathNotified) {
         levelManager.notifyPlayerDeath();
@@ -863,6 +893,8 @@ void Game::render() {
     if (!levelManager.isLevelTransitioning()) {
         int currentLevel = levelManager.getCurrentLevel();
         window.draw(getMapSprite(currentLevel));
+        // draw persistent ground decals (stains) under entities
+        Props::Explosion::renderGround(window);
         
         // Set interpolation alpha for player and zombies before they are rendered
         player.setRenderAlpha(renderAlpha);
@@ -975,6 +1007,11 @@ void Game::render() {
             reloadText.setPosition(textX, textY);
             window.draw(reloadText);
         }
+
+        // Draw explosions and guts splatters (world-space) AFTER entities so airborne particles appear above zombies
+        // They use world coordinates, so keep the gameView when rendering them.
+        Props::Explosion::renderAll(window);
+        Guts::renderAll(window);
     }
 
     // Draw world-space overlays (HUD/UI) using default view
@@ -1020,6 +1057,11 @@ void Game::render() {
             window.draw(bloodSprite);
         }
     }
+
+    // Draw explosions and guts splatters (world-space) AFTER entities so airborne particles appear above zombies
+    // They use world coordinates, so keep the gameView when rendering them.
+    Props::Explosion::renderAll(window);
+    Guts::renderAll(window);
 
     // Draw zombie count in top-left corner
     levelManager.renderUI(window, font);
@@ -1236,8 +1278,11 @@ void Game::render() {
             float edgeFade = std::min(40.f, width * 0.18f);
             float centerL = xLeft + edgeFade;
             float centerR = xRight - edgeFade;
-            sf::Color colOpaque(200,200,200,200);
+            float sepY = y + thickness / 2.f;
+
+            sf::Color colOpaque(200,200,200,220);
             sf::Color colTransparent = colOpaque; colTransparent.a = 0;
+
             // center solid segment
             if (centerR > centerL) {
                 sf::RectangleShape centerRect(sf::Vector2f(centerR - centerL, thickness));
@@ -1245,7 +1290,8 @@ void Game::render() {
                 centerRect.setFillColor(colOpaque);
                 window.draw(centerRect);
             }
-            // left fade
+
+            // left fading quad (two triangles)
             if (centerL > xLeft + 1.f) {
                 sf::VertexArray leftGrad(sf::Triangles, 6);
                 leftGrad[0] = sf::Vertex(sf::Vector2f(xLeft, y), colTransparent);
@@ -1256,7 +1302,8 @@ void Game::render() {
                 leftGrad[5] = sf::Vertex(sf::Vector2f(xLeft, y + thickness), colTransparent);
                 window.draw(leftGrad);
             }
-            // right fade
+
+            // right fading quad (two triangles)
             if (centerR < xRight - 1.f) {
                 sf::VertexArray rightGrad(sf::Triangles, 6);
                 rightGrad[0] = sf::Vertex(sf::Vector2f(centerR, y), colOpaque);
@@ -1499,152 +1546,6 @@ void Game::render() {
         window.draw(backText);
     }
 
-    // If paused and showingSettings, draw the settings panel (sliders, mute boxes, Back)
-    if (paused && showingSettings) {
-        sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
-        sf::RectangleShape panel(panelSize);
-        panel.setFillColor(sf::Color(20,20,20,255));
-        panel.setOutlineColor(sf::Color::White);
-        panel.setOutlineThickness(2.f);
-        panel.setOrigin(panel.getSize().x/2.f, panel.getSize().y/2.f);
-
-        float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
-        float gap = 20.f;
-        const float PANEL_EXTRA_OFFSET = 80.f;
-        float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panel.getSize().y / 2.f;
-        panel.setPosition(window.getSize().x/2.f, panelCenterY);
-        window.draw(panel);
-
-        sf::Text title;
-        title.setFont(font); title.setCharacterSize(52); title.setFillColor(sf::Color::White);
-        title.setString("Settings");
-        sf::FloatRect tbb = title.getLocalBounds();
-        title.setOrigin(tbb.left + tbb.width/2.f, tbb.top + tbb.height/2.f);
-        title.setPosition(panel.getPosition().x, panel.getPosition().y - panel.getSize().y/2.f + 40.f);
-        window.draw(title);
-
-        // slider geometry
-        float panelPaddingInner = 28.f;
-        float sliderWidth = panel.getSize().x * 0.55f;
-        float sliderX = panel.getPosition().x - sliderWidth/2.f;
-        float panelTop = panel.getPosition().y - panel.getSize().y/2.f;
-        float rowYStart = panelTop + 130.f;
-        float rowSpacing = 60.f;
-
-        auto drawSlider = [&](const std::string &text, float value, bool muted, float y) {
-            sf::Text lbl; lbl.setFont(font); lbl.setCharacterSize(28); lbl.setFillColor(sf::Color::White);
-            lbl.setString(text);
-            sf::FloatRect lb = lbl.getLocalBounds();
-            lbl.setOrigin(lb.left + 0.f, lb.top + lb.height/2.f);
-            lbl.setPosition(panel.getPosition().x - panel.getSize().x/2.f + panelPaddingInner, y + 8.f);
-            window.draw(lbl);
-
-            float bgHeight = 12.f;
-            sf::RectangleShape bg(sf::Vector2f(sliderWidth, bgHeight));
-            bg.setPosition(sliderX, y);
-            bg.setFillColor(sf::Color(60,60,60,220));
-            bg.setOutlineThickness(1.f);
-            bg.setOutlineColor(sf::Color(100,100,100,180));
-            window.draw(bg);
-
-            float frac = std::clamp(value / 100.f, 0.f, 1.f);
-            sf::RectangleShape fill(sf::Vector2f(sliderWidth * frac, bgHeight));
-            fill.setPosition(sliderX, y);
-            fill.setFillColor(sf::Color(200,200,200,220));
-            window.draw(fill);
-
-            float kx = sliderX + sliderWidth * frac;
-            float knobR = 8.f;
-            sf::CircleShape knob(knobR);
-            knob.setOrigin(knobR, knobR);
-            knob.setPosition(kx, y + bgHeight/2.f);
-            knob.setFillColor(sf::Color::White);
-            knob.setOutlineColor(sf::Color(120,120,120));
-            knob.setOutlineThickness(2.f);
-            window.draw(knob);
-
-            sf::Text pct; pct.setFont(font2); pct.setCharacterSize(18); pct.setFillColor(sf::Color::White);
-            pct.setString(std::to_string(static_cast<int>(value)) + "%");
-            sf::FloatRect pb = pct.getLocalBounds();
-            pct.setPosition(sliderX + sliderWidth + 8.f, y - pb.top);
-            window.draw(pct);
-
-            // mute box
-            float muteX = sliderX + sliderWidth + 60.f;
-            sf::RectangleShape box(sf::Vector2f(22.f, 22.f));
-            box.setPosition(muteX, y - 6.f);
-            box.setFillColor(sf::Color(30,30,30,220));
-            box.setOutlineColor(sf::Color::White);
-            box.setOutlineThickness(1.f);
-            window.draw(box);
-            if (muted) {
-                sf::VertexArray cross(sf::Lines, 4);
-                cross[0] = sf::Vertex(sf::Vector2f(muteX + 4.f, y - 1.f), sf::Color::Red);
-                cross[1] = sf::Vertex(sf::Vector2f(muteX + 22.f, y + 15.f), sf::Color::Red);
-                cross[2] = sf::Vertex(sf::Vector2f(muteX + 22.f, y - 1.f), sf::Color::Red);
-                cross[3] = sf::Vertex(sf::Vector2f(muteX + 4.f, y + 15.f), sf::Color::Red);
-                window.draw(cross);
-            }
-        };
-
-        drawSlider("Master", masterVolume, masterMuted, rowYStart);
-        drawSlider("Music", musicVolume, musicMuted, rowYStart + rowSpacing);
-        drawSlider("SFX", sfxVolume, sfxMuted, rowYStart + rowSpacing * 2);
-
-        // Back button at bottom-right inside panel
-        const unsigned int BACK_CHAR_SIZE = 36u;
-        const float ICON_W = 52.f;
-        const float ICON_PAD = 12.f;
-        sf::Text tmpBack; tmpBack.setFont(font); tmpBack.setCharacterSize(BACK_CHAR_SIZE); tmpBack.setString("Back");
-        sf::FloatRect backBounds = tmpBack.getLocalBounds();
-        float backWidth = backBounds.width + backBounds.left + 28.f + ICON_W + ICON_PAD;
-        float backHeight = backBounds.height + backBounds.top + 20.f;
-        sf::Vector2f backPos(panel.getPosition().x + panel.getSize().x/2.f - BACK_PANEL_MARGIN - backWidth,
-                             panel.getPosition().y + panel.getSize().y/2.f - BACK_PANEL_MARGIN - backHeight);
-
-        sf::Vector2i mousePixelUI = sf::Mouse::getPosition(window);
-        sf::Vector2f mouseUI = window.mapPixelToCoords(mousePixelUI, window.getDefaultView());
-        sf::FloatRect backRect(backPos.x, backPos.y, backWidth, backHeight);
-        bool backHovered = backRect.contains(mouseUI);
-        if (backHovered && !lastBackHovered) { if (uiHoverSound.getBuffer()) uiHoverSound.play(); }
-        lastBackHovered = backHovered;
-
-        sf::RectangleShape backBorder(sf::Vector2f(backWidth, backHeight));
-        backBorder.setFillColor(sf::Color::Transparent);
-        backBorder.setOutlineColor(backHovered ? sf::Color::Yellow : sf::Color::White);
-        backBorder.setOutlineThickness(2.f);
-        backBorder.setOrigin(0.f, 0.f);
-        backBorder.setPosition(backPos);
-        window.draw(backBorder);
-
-        float slotW = ICON_W; float slotH = backHeight - 12.f;
-        sf::RectangleShape iconSlot(sf::Vector2f(slotW, slotH));
-        iconSlot.setPosition(backPos.x + 8.f, backPos.y + 6.f);
-        iconSlot.setFillColor(sf::Color(24,24,24,200));
-        iconSlot.setOutlineThickness(1.f);
-        iconSlot.setOutlineColor(sf::Color(80,80,80,200));
-        if (backIconTexture.getSize().x > 0) {
-            sf::Vector2u bts = backIconTexture.getSize();
-            float scale = std::min(slotH / static_cast<float>(bts.y), slotW / static_cast<float>(bts.x));
-            backIconSprite.setScale(scale, scale);
-            float spriteW = bts.x * scale;
-            float spriteX = backPos.x + 8.f + (slotW - spriteW) * 0.5f;
-            float spriteY = backPos.y + 6.f + (slotH - bts.y * scale) * 0.5f;
-            backIconSprite.setPosition(spriteX, spriteY);
-            if (backHovered) { sf::Color prevCol = backIconSprite.getColor(); backIconSprite.setColor(sf::Color(255,255,180)); window.draw(backIconSprite); backIconSprite.setColor(prevCol); }
-            else window.draw(backIconSprite);
-        } else {
-            window.draw(iconSlot);
-        }
-
-        sf::Text backText; backText.setFont(font); backText.setCharacterSize(BACK_CHAR_SIZE); backText.setString("Back"); backText.setFillColor(backHovered ? sf::Color::Yellow : sf::Color::White);
-        sf::FloatRect tb = backText.getLocalBounds();
-        float tx = backPos.x + 8.f + ICON_W + ICON_PAD;
-        float ty = backPos.y + (backHeight - tb.height) / 2.f - tb.top;
-        backText.setPosition(tx, ty);
-        window.draw(backText);
-    }
-
     // Draw GAME OVER text when triggered (fades in)
     if (gameOverTriggered && gameOverAlpha > 0.001f) {
         sf::Text goText;
@@ -1672,7 +1573,7 @@ void Game::render() {
         // Determine mouse UI position (default view)
         sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
         sf::Vector2f mouseUI = window.mapPixelToCoords(mousePixel, window.getDefaultView());
-        gameOverHoveredIndex = -1;
+
         for (size_t i = 0; i < items.size(); ++i) {
             sf::Text it; it.setFont(font); it.setCharacterSize(itemSize); it.setStyle(sf::Text::Bold);
             it.setString(items[i]);
@@ -1682,18 +1583,12 @@ void Game::render() {
             it.setPosition(static_cast<float>(window.getSize().x) * 0.5f, y);
             // compute hit rect expanded slightly
             sf::FloatRect hit(it.getPosition().x - ib.width/2.f - 8.f, it.getPosition().y - ib.height/2.f - 6.f, ib.width + 16.f, ib.height + 12.f);
-            if (gameOverMenuAlpha > 0.05f && hit.contains(mouseUI)) {
-                gameOverHoveredIndex = static_cast<int>(i);
+            if (hit.contains(mouseUI)) {
+                if (uiClickSound.getBuffer()) uiClickSound.play();
+                if (items[i] == "EXIT") { window.close(); }
+                else if (items[i] == "RETRY ROUND") { reset(); }
+                break;
             }
-            // fill color based on hover
-            if (static_cast<int>(i) == gameOverHoveredIndex) it.setFillColor(sf::Color::Yellow);
-            else it.setFillColor(sf::Color::White);
-            // apply combined alpha (title * menu)
-            float combinedAlpha = gameOverAlpha * gameOverMenuAlpha;
-            sf::Uint8 mail = static_cast<sf::Uint8>(std::clamp(combinedAlpha * 255.0f, 0.0f, 255.0f));
-            sf::Color col = it.getFillColor(); col.a = mail; it.setFillColor(col);
-            it.setOutlineColor(sf::Color(0,0,0, mail)); it.setOutlineThickness(2.f);
-            window.draw(it);
         }
         // Play hover sound when hover index changes (only when menu visible)
         if (gameOverMenuAlpha > 0.05f && gameOverHoveredIndex != lastGameOverHovered) {

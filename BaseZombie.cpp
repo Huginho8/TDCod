@@ -1,6 +1,8 @@
 #include "BaseZombie.h"
 #include <iostream>
 #include <cmath>
+#include "ExplosionProvider.hpp"
+#include "Guts.hpp"
 
 BaseZombie::BaseZombie(float x, float y, float health, float attackDamage, float speed, float attackRange, float attackCooldown)
     : Entity(EntityType::Enemy, Vec2(x, y), Vec2(50.f, 50.f), false, 1.0f, true),
@@ -177,6 +179,23 @@ void BaseZombie::kill() {
         sprite.setColor(sf::Color(255,255,255,0));
         // ensure physics body no longer moves
         body.velocity = Vec2(0,0);
+        // Spawn blood explosion at death position
+        ExplosionProvider::getBig(Vec2(body.position.x, body.position.y), 0.0f);
+        ExplosionProvider::getBigFast(Vec2(body.position.x, body.position.y), 0.0f);
+    }
+}
+
+void BaseZombie::onHitByBullet(const Vec2& hitPos, const Vec2& bulletVelocity, int remainingPenetrations) {
+    // Use zombie's body position as origin for effects to ensure they appear on the zombie
+    Vec2 origin(body.position.x, body.position.y);
+
+    // Spawn base hit effect
+    ExplosionProvider::getHit(origin, std::atan2(bulletVelocity.y, bulletVelocity.x));
+
+    if (remainingPenetrations > 0) {
+        // on final penetration spawn a through effect
+        ExplosionProvider::getThrough(origin, std::atan2(bulletVelocity.y, bulletVelocity.x));
+        ExplosionProvider::getHit(Vec2(body.position.x, body.position.y), 0.0f);
     }
 }
 

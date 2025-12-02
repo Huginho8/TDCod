@@ -127,6 +127,11 @@ private:
     // Exponent controlling how quickly the blood intensifies as health falls (1.0 linear, 2.0 squared)
     float bloodIntensityPow = 2.0f;
 
+    // Guts texture for particle sprites (optional)
+    sf::Texture gutsTexture;
+    // Blood particle texture (used by Explosion for textured blood particles)
+    sf::Texture bloodParticleTexture;
+
     // Render-to-texture for world rendering so we can apply a desaturation shader
     sf::RenderTexture worldRenderTexture;
     sf::Sprite worldTextureSprite;

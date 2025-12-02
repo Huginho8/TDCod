@@ -38,6 +38,8 @@ public:
 
     virtual void attack();
     virtual void takeDamage(float amount);
+    // Called when hit by a bullet so the zombie can spawn effects (blood, guts, explosions)
+    virtual void onHitByBullet(const Vec2& hitPos, const Vec2& bulletVelocity, int remainingPenetrations);
     virtual void kill();
     // Called when the player dies so zombies can stop attacking/moving
     void onPlayerDeath();
