@@ -70,7 +70,9 @@ public:
     float knockbackMoveMultiplier = 0.35f; // movement reduced while knocked
     
     float getAttackDamage() const;
-    
+    // Returns current weapon spread in degrees (includes base inaccuracy + recoil)
+    float getCurrentSpreadDeg() const;
+
     sf::FloatRect getHitbox() const;
     sf::FloatRect getAttackHitbox() const;
     
@@ -88,6 +90,12 @@ public:
     bool isReloading() const { return reloading; }
     int getCurrentAmmo() const { return currentAmmo; }
     int getMagazineSize() const { return magazineSize; }
+    // Per-weapon ammo accessors (current rounds in magazine)
+    int getPistolAmmoInMag() const { return pistolAmmoInMag; }
+    int getRifleAmmoInMag() const { return rifleAmmoInMag; }
+    // Per-weapon magazine capacities
+    int getPistolMagCapacity() const { return 12; }
+    int getRifleMagCapacity() const { return 30; }
 
     float timeSinceLastShot = 0.0f;
     float fireCooldown = 0.0f; // Time (in seconds) between shots
@@ -210,7 +218,7 @@ private:
     float health;
     float maxHealth;
     
-    float healthRegenRate = 5.0f;
+    float healthRegenRate = 10.0f;
     float timeSinceLastDamage = 0.0f;
     const float HEALTH_REGEN_DELAY = 5.0f;
 

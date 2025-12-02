@@ -93,7 +93,24 @@ void BaseZombie::draw(sf::RenderWindow& window) const {
         window.draw(sh);
     }
     temp.setPosition(interp);
+    // Draw the sprite normally
     window.draw(temp);
+
+    // Additive white overlay to simulate brightening:
+    // - subtle overlay while attacking
+    // - stronger overlay during active damage frames
+    if (attacking) {
+        sf::Sprite overlay = temp;
+        if (isInDamageWindow) {
+            // stronger white flash when damage can be dealt
+            overlay.setColor(sf::Color(255,255,255,220));
+            window.draw(overlay, sf::RenderStates(sf::BlendAdd));
+        } else {
+            // more subtle white glow during attack wind-up
+            overlay.setColor(sf::Color(255,255,255,60));
+            window.draw(overlay, sf::RenderStates(sf::BlendAdd));
+        }
+    }
 
     if (!dead) {
         float barWidth = 50.0f;
@@ -299,6 +316,11 @@ void BaseZombie::updateAnimation(float deltaTime) {
             setState(ZombieState::WALK);
         }
     }
+
+    // Reset damage window flag after updating animation state
+    if (isInDamageWindow) {
+        isInDamageWindow = false;
+    }
 }
 
 bool BaseZombie::hasDealtDamageInAttack() const {
@@ -355,4 +377,16 @@ void BaseZombie::resetForSpawn(float x, float y, float healthVal, float damageVa
     // Ensure animator is configured for walking and playing
     setState(ZombieState::WALK);
     prevPos = currPos = sf::Vector2f(x, y);
+}
+
+void BaseZombie::onPlayerDeath() {
+    // When the player dies, zombies should immediately stop attacking and moving.
+    attacking = false;
+    // Clear any attack animation and revert to idle/walk state but keep movement zero
+    animator.stop();
+    body.velocity = Vec2(0,0);
+    // Ensure they no longer perform attacks
+    m_hasDealtDamageInAttack = true;
+    // Keep sprite visible but idle
+    setState(ZombieState::WALK);
 }

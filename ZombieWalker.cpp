@@ -106,6 +106,11 @@ void ZombieWalker::updateAnimation(float deltaTime) {
 
         // reset damage flag when attack starts (frame 0)
         if (animator.getCurrentFrameIndex() == 0) this->damageDealtThisAttack = false;
+        // update BaseZombie flag indicating whether this frame is part of damage window
+        bool inWindow = false;
+        int cf = static_cast<int>(animator.getCurrentFrameIndex());
+        for (int f : damageFrames) if (cf == f) { inWindow = true; break; }
+        this->isInDamageWindow = inWindow;
     }
 
     if (this->lunging) {

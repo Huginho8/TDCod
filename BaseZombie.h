@@ -39,6 +39,8 @@ public:
     virtual void attack();
     virtual void takeDamage(float amount);
     virtual void kill();
+    // Called when the player dies so zombies can stop attacking/moving
+    void onPlayerDeath();
 
     // Prepare this zombie to be reused from a pool. Sets position, health, damage and speed
     void resetForSpawn(float x, float y, float healthVal, float damageVal, float speedVal);
@@ -122,6 +124,9 @@ protected:
     virtual bool isMovementLocked() const { return false; }
 
     bool m_hasDealtDamageInAttack;
+
+    // Set by derived classes during attack animation to indicate the active damage frames.
+    bool isInDamageWindow = false;
 
     void loadTextureSet(std::vector<sf::Texture>& textures, const std::string& basePath,
         const std::string& prefix, int count, bool isBoss = false);
