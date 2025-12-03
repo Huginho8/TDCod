@@ -59,6 +59,9 @@ Game::Game()
         mapTexture1.setRepeated(true);
         mapSprite1.setTexture(mapTexture1);
         mapSprite1.setTextureRect(sf::IntRect(0, 0, 2560, 2560));
+        int startLevelForCanvas = levelManager.getCurrentLevel();
+        sf::Vector2u initialMapSize = getMapSize(startLevelForCanvas);
+        Props::Explosion::setGroundCanvasSize(initialMapSize.x, initialMapSize.y);
     }
     
     if (!font.loadFromFile("TDCod/Assets/Call of Ops Duty.otf")) {
@@ -326,7 +329,7 @@ Game::Game()
     }
 
     // Load R key icon for on-screen reload prompt (optional). This is non-fatal.
-    if (reloadKeyTexture.loadFromFile("TDCod/Assets/R_key.png")) {
+    if (reloadKeyTexture.loadFromFile("TDCod/Assets/R_icon.png")) {
         reloadKeyTexture.setSmooth(true);
         reloadKeySprite.setTexture(reloadKeyTexture);
         // set a default origin so positioning is straightforward when drawing
@@ -353,18 +356,14 @@ Game::Game()
     }
 
     // Load guts texture (optional) and pass to Guts system
-    if (gutsTexture.loadFromFile("TDCod/Assets/Props/guts.png")) {
-        Guts::setTexture(gutsTexture);
-    } else if (gutsTexture.loadFromFile("TDCod/Assets/guts.png")) {
+    if (gutsTexture.loadFromFile("TDCod/Assets/guts.png")) {
         Guts::setTexture(gutsTexture);
     } else {
         // not fatal, Guts will render primitives
     }
 
     // Load blood particle texture (optional) and pass to Explosion system
-    if (bloodParticleTexture.loadFromFile("TDCod/Assets/Props/blood.png")) {
-        Props::Explosion::setTexture(bloodParticleTexture);
-    } else if (bloodParticleTexture.loadFromFile("TDCod/Assets/blood.png")) {
+    if (bloodParticleTexture.loadFromFile("TDCod/Assets/blood.png")) {
         Props::Explosion::setTexture(bloodParticleTexture);
     } else {
         // not fatal, Explosion will render colored quads
@@ -543,7 +542,7 @@ void Game::processInput() {
                 if (!levelManager.isRequireEscToAdvanceDialog()) levelManager.advanceDialog();
             }
             if (event.key.code == sf::Keyboard::R) player.startReload();
-            if (event.key.code == sf::Keyboard::Tilde) debugDrawHitboxes = !debugDrawHitboxes;
+            //if (event.key.code == sf::Keyboard::Tilde) debugDrawHitboxes = !debugDrawHitboxes;
             if (event.key.code == sf::Keyboard::Num1) player.setWeapon(WeaponType::RIFLE);
             if (event.key.code == sf::Keyboard::Num2) player.setWeapon(WeaponType::PISTOL);
         }
@@ -669,9 +668,9 @@ void Game::processInput() {
 
             // GAME OVER menu handling (clicks)
             if (gameOverTriggered && gameOverMenuAlpha > 0.05f) {
-                unsigned int itemSize = static_cast<unsigned int>(std::min(72.f, static_cast<float>(window.getSize().y) * 0.06f));
-                float startY = static_cast<float>(window.getSize().y) * 0.45f;
-                float lineSpacing = static_cast<float>(window.getSize().y) * 0.07f;
+                unsigned int itemSize = static_cast<unsigned int>(std::min(124.f, static_cast<float>(window.getSize().y) * 0.08f));
+                float startY = static_cast<float>(window.getSize().y) * 0.50f;
+                float lineSpacing = static_cast<float>(window.getSize().y) * 0.1f;
                 std::vector<std::string> items = {"RETRY ROUND", "EXIT"};
 
                 sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
@@ -1559,44 +1558,116 @@ void Game::render() {
         sf::Uint8 ia = static_cast<sf::Uint8>(std::clamp(gameOverAlpha * 255.0f, 0.0f, 255.0f));
         goText.setFillColor(sf::Color(255, 255, 255, ia));
         goText.setOutlineColor(sf::Color(0, 0, 0, ia));
-        goText.setOutlineThickness(3.f);
+        goText.setOutlineThickness(2.f);
         sf::FloatRect gb = goText.getLocalBounds();
         goText.setOrigin(gb.left + gb.width / 2.f, gb.top + gb.height / 2.f);
         goText.setPosition(static_cast<float>(window.getSize().x) * 0.5f, static_cast<float>(window.getSize().y) * 0.30f);
         window.draw(goText);
 
+        // Compute the title world rect (accounts for origin used above)
+        sf::FloatRect titleWorldRect(
+            goText.getPosition().x - gb.width * 0.5f,
+            goText.getPosition().y - gb.height * 0.5f,
+            gb.width,
+            gb.height
+        );
+
+        // Underline parameters (scale with text size but clamped for stability)
+        float underlinePadX = std::clamp(static_cast<float>(size) * 0.12f, 12.f, 64.f); // horizontal padding each side
+        float underlineGap = std::clamp(static_cast<float>(size) * 0.08f, 8.f, 48.f);   // gap between text bottom and underline
+        float underlineThickness = std::clamp(static_cast<float>(size) * 0.04f, 4.f, 14.f);
+
+        // Build underline rect (draw a thin black backing first for contrast)
+        sf::Vector2f ulSize(titleWorldRect.width + underlinePadX * 2.f, underlineThickness);
+        sf::Vector2f ulPos(titleWorldRect.left - underlinePadX, titleWorldRect.top + titleWorldRect.height + underlineGap);
+
+        // Backing (subtle outline/shadow)
+        sf::RectangleShape ulBack(ulSize + sf::Vector2f(6.f, 3.f));
+        ulBack.setPosition(ulPos - sf::Vector2f(3.f, 1.5f));
+        ulBack.setFillColor(sf::Color(0, 0, 0, ia));
+        window.draw(ulBack);
+
+        // Foreground underline (white or hover-accent if you want)
+        sf::RectangleShape underline(ulSize);
+        underline.setPosition(ulPos);
+        underline.setFillColor(sf::Color(255, 255, 255, ia));
+        window.draw(underline);
+
+  
         // Draw two simple centered menu entries under the GAME OVER title
-        unsigned int itemSize = static_cast<unsigned int>(std::min(72.f, static_cast<float>(window.getSize().y) * 0.06f));
-        float startY = static_cast<float>(window.getSize().y) * 0.45f;
-        float lineSpacing = static_cast<float>(window.getSize().y) * 0.07f;
-        std::vector<std::string> items = {"RETRY ROUND", "EXIT"};
+        unsigned int itemSize = static_cast<unsigned int>(std::min(124.f, static_cast<float>(window.getSize().y) * 0.08f));
+        float startY = static_cast<float>(window.getSize().y) * 0.50f;
+        float lineSpacing = static_cast<float>(window.getSize().y) * 0.1f;
+        const std::vector<std::string> items = { "RETRY ROUND", "EXIT" };
         // Determine mouse UI position (default view)
         sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
         sf::Vector2f mouseUI = window.mapPixelToCoords(mousePixel, window.getDefaultView());
 
+        float centerX = static_cast<float>(window.getSize().x) * 0.5f;
+        int hoveredIndex = -1;
+
+        // Use same alpha as the GAME OVER title so menu fades consistently
+        sf::Uint8 itemAlpha = ia; // 'ia' was computed for GAME OVER above
+
+        // Colors with alpha
+        sf::Color fillNormal(255, 255, 255, itemAlpha);
+        sf::Color fillHover(255, 255, 0, itemAlpha);
+        sf::Color outlineCol(0, 0, 0, itemAlpha);
+        const float outlineThickness = 2.f;
+
+        // First pass: detect hover only (click handling stays in processInput)
         for (size_t i = 0; i < items.size(); ++i) {
-            sf::Text it; it.setFont(font); it.setCharacterSize(itemSize); it.setStyle(sf::Text::Bold);
+            sf::Text it;
+            it.setFont(font);
+            it.setCharacterSize(itemSize);
+            it.setStyle(sf::Text::Bold);
             it.setString(items[i]);
+
             sf::FloatRect ib = it.getLocalBounds();
-            it.setOrigin(ib.left + ib.width / 2.f, ib.top + ib.height / 2.f);
             float y = startY + static_cast<float>(i) * lineSpacing;
-            it.setPosition(static_cast<float>(window.getSize().x) * 0.5f, y);
-            // compute hit rect expanded slightly
-            sf::FloatRect hit(it.getPosition().x - ib.width/2.f - 8.f, it.getPosition().y - ib.height/2.f - 6.f, ib.width + 16.f, ib.height + 12.f);
-            if (hit.contains(mouseUI)) {
-                if (uiClickSound.getBuffer()) uiClickSound.play();
-                if (items[i] == "EXIT") { window.close(); }
-                else if (items[i] == "RETRY ROUND") { reset(); }
-                break;
-            }
+
+            // build a centered hit rect (expanded slightly for easier targeting)
+            sf::FloatRect hit(centerX - ib.width * 0.5f - 8.f,
+                y - ib.height * 0.5f - 6.f,
+                ib.width + 16.f,
+                ib.height + 12.f);
+
+            if (hit.contains(mouseUI)) hoveredIndex = static_cast<int>(i);
         }
+
+        // Draw items and apply hover highlight + outline like the GAME OVER title
+        for (size_t i = 0; i < items.size(); ++i) {
+            sf::Text it;
+            it.setFont(font);
+            it.setCharacterSize(itemSize);
+            it.setStyle(sf::Text::Bold);
+            it.setString(items[i]);
+
+            sf::FloatRect ib = it.getLocalBounds();
+            float y = startY + static_cast<float>(i) * lineSpacing;
+
+            // Center text by origin and position
+            it.setOrigin(ib.left + ib.width * 0.5f, ib.top + ib.height * 0.5f);
+            it.setPosition(centerX, y);
+
+            // Outline and fill (outline matches GAME OVER style)
+            it.setOutlineColor(outlineCol);
+            it.setOutlineThickness(outlineThickness);
+            it.setFillColor(static_cast<int>(i) == hoveredIndex ? fillHover : fillNormal);
+
+            window.draw(it);
+        }
+
+        // Update hover-tracking state used by hover-sound logic elsewhere
+        gameOverHoveredIndex = hoveredIndex;
+
         // Play hover sound when hover index changes (only when menu visible)
         if (gameOverMenuAlpha > 0.05f && gameOverHoveredIndex != lastGameOverHovered) {
             if (gameOverHoveredIndex != -1 && uiHoverSound.getBuffer()) uiHoverSound.play();
             lastGameOverHovered = gameOverHoveredIndex;
         }
     }
-    
+
     window.display();
 }
 

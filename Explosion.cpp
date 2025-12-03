@@ -3,8 +3,26 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cmath>
+#include <sstream>
+#include <string>
+#include <iostream>
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 using namespace Props;
+
+// simple debug logger that uses OutputDebugString on Windows (visible in Visual Studio Output window)
+// falls back to std::cerr when not available
+static void dbgLog(const std::string& s) {
+#ifdef _WIN32
+    OutputDebugStringA(s.c_str());
+    OutputDebugStringA("\n");
+#else
+    std::cerr << s << std::endl;
+#endif
+}
 
 size_t Explosion::_textureID;
 std::vector<Explosion*> Explosion::_active;
@@ -35,21 +53,37 @@ static bool createGroundCanvas(unsigned int w, unsigned int h)
     return ok;
 }
 
-// Flush any pending quads into the ground canvas. Caller must ensure canvas is ready.
 static void flushPendingGroundQuads()
 {
     if (!_groundCanvasReady) return;
     if (_pendingGroundQuads.empty()) return;
+
+    // Debug: report flush
+    {
+        std::ostringstream ss;
+        ss << "[Explosion] flushPendingGroundQuads: count=" << _pendingGroundQuads.size()
+            << " canvasSize=(" << _groundCanvas.getTexture().getSize().x << "," << _groundCanvas.getTexture().getSize().y << ")";
+        dbgLog(ss.str());
+    }
+
     _groundCanvas.setView(_groundCanvas.getDefaultView());
-    for (auto &p : _pendingGroundQuads) {
-        const sf::VertexArray &quad = p.first;
+    for (auto& p : _pendingGroundQuads) {
+        const sf::VertexArray& quad = p.first;
         const sf::Texture* tex = p.second;
+        // debug: log first vertex pos for tracing
+        if (quad.getVertexCount() > 0) {
+            const sf::Vertex& v = quad[0];
+            std::ostringstream ss;
+            ss << "[Explosion] flushing quad first-vertex=(" << v.position.x << "," << v.position.y << ") tex=" << (tex ? "yes" : "no");
+            dbgLog(ss.str());
+        }
         if (tex) {
             sf::RenderStates rs;
             rs.blendMode = sf::BlendAlpha;
             rs.texture = tex;
             _groundCanvas.draw(quad, rs);
-        } else {
+        }
+        else {
             _groundCanvas.draw(quad);
         }
     }
@@ -59,6 +93,16 @@ static void flushPendingGroundQuads()
 // Draw a quad into the persistent ground canvas (decals/stains)
 static void addQuadToGroundCanvas(const sf::VertexArray& quad, const sf::Texture* tex = nullptr) {
     if (!_groundCanvasReady) {
+        // debug: log pending quad coords so we can see why a consistent offset may appear
+        if (quad.getVertexCount() > 0) {
+            const sf::Vertex& v = quad[0];
+            std::ostringstream ss;
+            ss << "[Explosion] queueing pending ground quad first-vertex=(" << v.position.x << "," << v.position.y << ") tex=" << (tex ? "yes" : "no");
+            dbgLog(ss.str());
+        }
+        else {
+            dbgLog("[Explosion] queueing pending ground quad (empty)");
+        }
         // cache for later flush when canvas becomes available
         _pendingGroundQuads.emplace_back(quad, tex);
         return;
@@ -70,49 +114,68 @@ static void addQuadToGroundCanvas(const sf::VertexArray& quad, const sf::Texture
         rs.blendMode = sf::BlendAlpha;
         rs.texture = tex;
         _groundCanvas.draw(quad, rs);
-    } else {
+    }
+    else {
         _groundCanvas.draw(quad);
     }
     // do NOT call display here; batch callers should call display once after many draws
 }
 
-Particle::Particle() { }
-void Particle::update() { _x += _vx + (static_cast<float>(rand()%1000)/1000.0f - 0.5f) * 3.0f; _y += _vy + (static_cast<float>(rand()%1000)/1000.0f - 0.5f) * 3.0f; }
+Particle::Particle() {}
+void Particle::update() {
+    // Reduced jitter (was large) — keeps particles near their computed trajectory.
+    const float jitterAmp = 0.6f;
+    float nx = (static_cast<float>(rand() % 1000) / 1000.0f - 0.5f);
+    float ny = (static_cast<float>(rand() % 1000) / 1000.0f - 0.5f);
+    _x += _vx + nx * jitterAmp;
+    _y += _vy + ny * jitterAmp;
+}
 
-Explosion::Explosion() : _vertexArray(sf::Quads,4), _isBlood(false) {}
+Explosion::Explosion() : _vertexArray(sf::Quads, 4), _isBlood(false), _cx(0.f), _cy(0.f), _maxAllowedDrawDistance(256.f) {}
 
-Explosion::Explosion(float x, float y, float openAngle, float angle, float speed, float size, size_t n, bool blood): _n(n), _openAngle(openAngle*0.5f), _max_speed(static_cast<int32_t>(speed)), _size(size), _isTrace(false), _isBlood(blood), _vertexArray(sf::Quads,4)
+Explosion::Explosion(float x, float y, float openAngle, float angle, float speed, float size, size_t n, bool blood)
+    : _n(n),
+    _openAngle(openAngle * 0.5f),
+    _max_speed(static_cast<int32_t>(speed)),
+    _size(size),
+    _isTrace(false),
+    _isBlood(blood),
+    _vertexArray(sf::Quads, 4),
+    _cx(x),
+    _cy(y)
 {
     _decrease = 0.1f;
+    // scale allowed draw distance with particle size (sensible clamp)
+    _maxAllowedDrawDistance = std::clamp(_size * 12.0f, 128.f, 1024.f);
+
     _particles.resize(_n);
-    for (size_t i(_n); i--;)
-    {
+    for (size_t i(_n); i--;) {
         Particle& p = _particles[i];
-        const float sp = static_cast<float>( (_max_speed>0) ? (rand()%_max_speed) : 0 );
-        const float a = (static_cast<int>(rand()%static_cast<int>(openAngle*2)) - static_cast<int>(openAngle))*0.0174532925f + angle;
-        const int indexA = rand()%1000;
-        // assign size first so we can offset initial Y to render particles visually above the source
-        p._size = static_cast<float>(rand()%int(_size)+2);
-        // small upward offset so particles appear above the zombie sprite initially
+        const float sp = static_cast<float>((_max_speed > 0) ? (rand() % _max_speed) : 0);
+        const float a = (static_cast<int>(rand() % static_cast<int>(openAngle * 2)) - static_cast<int>(openAngle)) * 0.0174532925f + angle;
+        const int indexA = rand() % 1000;
+        p._size = static_cast<float>(rand() % int(_size) + 2);
+        // place initial particle at the explosion origin (use origin, not adjusted world offsets)
         p._x = x;
         p._y = y - (p._size * 0.5f + 4.0f);
         p._vx = sp * cosf(a); p._vy = sp * sinf(a);
-        // guard against empty precomputed tables (should be initialized via init)
         if (!_preCalculatedVx.empty() && !_preCalculatedVy.empty()) {
             p._vax = _preCalculatedVx[indexA]; p._vay = _preCalculatedVy[indexA];
-        } else {
+        }
+        else {
             p._vax = cosf(a); p._vay = sinf(a);
         }
         if (_isBlood) {
-            uint8_t r = static_cast<uint8_t>(150 + rand()%80); // red dominant
-            uint8_t g = static_cast<uint8_t>(10 + rand()%40);
-            uint8_t b = static_cast<uint8_t>(10 + rand()%40);
-            uint8_t alpha = static_cast<uint8_t>(160 + rand()%95);
-            p._color = sf::Color(r,g,b,alpha);
-        } else {
-            uint8_t color = static_cast<uint8_t>(50 + rand()%125);
-            uint8_t alpha = static_cast<uint8_t>(100 + rand()%155);
-            p._color = sf::Color(color,color,color, alpha);
+            uint8_t r = static_cast<uint8_t>(150 + rand() % 80);
+            uint8_t g = static_cast<uint8_t>(10 + rand() % 40);
+            uint8_t b = static_cast<uint8_t>(10 + rand() % 40);
+            uint8_t alpha = static_cast<uint8_t>(160 + rand() % 95);
+            p._color = sf::Color(r, g, b, alpha);
+        }
+        else {
+            uint8_t color = static_cast<uint8_t>(50 + rand() % 125);
+            uint8_t alpha = static_cast<uint8_t>(100 + rand() % 155);
+            p._color = sf::Color(color, color, color, alpha);
         }
     }
     _traceOnEnd = true;
@@ -158,67 +221,74 @@ void Explosion::update(void* world){
     _ratio = std::max(0.0f, _ratio);
 }
 
-void Explosion::render(sf::RenderWindow& window){
+void Explosion::render(sf::RenderWindow& window) {
     if (_ratio > 0) {
         bool hasTex = (_isBlood && Explosion::_texture.getSize().x > 0);
+        const float maxDistSq = _maxAllowedDrawDistance * _maxAllowedDrawDistance;
+
         for (const Particle& p : _particles) {
+            // defensive checks: ignore NaNs / huge outliers
+            if (!std::isfinite(p._x) || !std::isfinite(p._y)) {
+                std::cerr << "[Explosion] skipping particle with non-finite coords. origin=("
+                    << _cx << "," << _cy << ") particle=(" << p._x << "," << p._y << ")\n";
+                continue;
+            }
+            float dx = p._x - _cx;
+            float dy = p._y - _cy;
+            // skip particles that wandered extremely far from the explosion origin
+            if (dx * dx + dy * dy > maxDistSq) {
+                // Debug: log the outlier so we can trace why it's at a fixed offset
+                std::cerr << "[Explosion] skipping outlier particle. origin=("
+                    << _cx << "," << _cy << ") particle=(" << p._x << "," << p._y
+                    << ") dist=" << std::sqrt(dx * dx + dy * dy) << " max=" << _maxAllowedDrawDistance << "\n";
+                continue;
+            }
+
             float x = p._x;
             float y = p._y;
             float sx, sy;
             if (_isTrace) {
-                int indexA = rand()%1000;
-                sx = p._size*_ratio*getRandVx(indexA);
-                sy = p._size*_ratio*getRandVy(indexA);
-            } else {
-                sx = p._size*_ratio*p._vax;
-                sy = p._size*_ratio*p._vay;
+                int indexA = rand() % 1000;
+                sx = p._size * _ratio * getRandVx(indexA);
+                sy = p._size * _ratio * getRandVy(indexA);
+            }
+            else {
+                sx = p._size * _ratio * p._vax;
+                sy = p._size * _ratio * p._vay;
             }
             if (_committedToGround) continue; // already stamped to ground, no longer render above entities
+
             if (hasTex) {
-                // draw textured sprite for blood particle
+                // [existing textured particle path — unchanged except we've already validated position]
                 sf::Sprite s(Explosion::_texture);
-                // convert sprite into textured quad and paint into ground canvas (if available)
                 sf::Vector2u ts = Explosion::_texture.getSize();
-                if (ts.x == 0 || ts.y == 0) {
-                    // invalid texture -> skip
-                    continue;
-                }
-                // compute same scale as before
+                if (ts.x == 0 || ts.y == 0) continue;
                 float denom = static_cast<float>(std::max(1u, std::max(ts.x, ts.y)));
                 float scale = (p._size * _ratio) / denom * 8.0f;
-                // rotated quad half extents in world units
                 float hw = (static_cast<float>(ts.x) * scale) * 0.5f;
                 float hh = (static_cast<float>(ts.y) * scale) * 0.5f;
-                // rotation in radians
                 float rotDeg = std::atan2(p._vy, p._vx) * 180.f / 3.14159265f;
                 float rot = rotDeg * 3.14159265f / 180.0f;
                 float c = std::cos(rot);
                 float sN = std::sin(rot);
-                // local corners (unrotated): TL, TR, BR, BL
                 sf::Vector2f local[4] = { {-hw, -hh}, {hw, -hh}, {hw, hh}, {-hw, hh} };
                 sf::VertexArray quad(sf::Quads, 4);
-                // texture coords map full texture
                 sf::Vector2f uv[4] = { {0.f, 0.f}, {static_cast<float>(ts.x), 0.f}, {static_cast<float>(ts.x), static_cast<float>(ts.y)}, {0.f, static_cast<float>(ts.y)} };
                 for (int i = 0; i < 4; ++i) {
                     float lx = local[i].x;
                     float ly = local[i].y;
-                    // rotate
                     float rx = lx * c - ly * sN;
                     float ry = lx * sN + ly * c;
-                    // world pos
                     quad[i].position = sf::Vector2f(x + rx, y + ry);
                     quad[i].texCoords = uv[i];
                     quad[i].color = p._color;
                 }
 
-                // For textured particles we only commit to ground when stamping is intended
-                // (traces or final commit). Otherwise draw the textured sprite directly so
-                // airborne blood appears above entities.
                 if (!_groundCanvasReady) {
-                    // lazy init default size to 2560x2560 (map default)
                     if (!createGroundCanvas(2560, 2560)) {
                         _groundCanvasReady = false;
-                    } else {
+                    }
+                    else {
                         _groundCanvas.clear(sf::Color::Transparent);
                         _groundCanvasReady = true;
                         flushPendingGroundQuads();
@@ -227,42 +297,41 @@ void Explosion::render(sf::RenderWindow& window){
 
                 bool shouldCommit = false;
                 if (!_isTrace) {
-                    if (_traceOnEnd && _ratio - 4*_decrease < 0.0f) shouldCommit = true;
-                } else {
-                    // traces always commit to ground
+                    if (_traceOnEnd && _ratio - 4 * _decrease < 0.0f) shouldCommit = true;
+                }
+                else {
                     shouldCommit = true;
                 }
 
                 if (shouldCommit && _groundCanvasReady) {
                     addQuadToGroundCanvas(quad, &_texture);
-                } else {
-                    // draw textured sprite directly to the window (airborne particle)
-                    s.setOrigin(static_cast<float>(ts.x)/2.f, static_cast<float>(ts.y)/2.f);
+                }
+                else {
+                    s.setOrigin(static_cast<float>(ts.x) / 2.f, static_cast<float>(ts.y) / 2.f);
                     s.setScale(scale, scale);
                     s.setRotation(rotDeg);
                     s.setColor(p._color);
                     s.setPosition(x, y);
                     window.draw(s);
                 }
-                 
-             } else {
-                 sf::VertexArray quad(sf::Quads, 4);
-                quad[0] = sf::Vertex(sf::Vector2f(x+sx, y+sy), p._color);
-                quad[1] = sf::Vertex(sf::Vector2f(x+sy, y-sx), p._color);
-                quad[2] = sf::Vertex(sf::Vector2f(x-sx, y-sy), p._color);
-                quad[3] = sf::Vertex(sf::Vector2f(x-sy, y+sx), p._color);
+            }
+            else {
+                sf::VertexArray quad(sf::Quads, 4);
+                quad[0] = sf::Vertex(sf::Vector2f(x + sx, y + sy), p._color);
+                quad[1] = sf::Vertex(sf::Vector2f(x + sy, y - sx), p._color);
+                quad[2] = sf::Vertex(sf::Vector2f(x - sx, y - sy), p._color);
+                quad[3] = sf::Vertex(sf::Vector2f(x - sy, y + sx), p._color);
 
                 // decide whether to commit to persistent ground canvas or render normally
                 if (!_isTrace)
                 {
-                    if (_traceOnEnd && _ratio - 4*_decrease < 0.0f)
+                    if (_traceOnEnd && _ratio - 4 * _decrease < 0.0f)
                     {
-                        // commit final faded particles to ground (persistent decal)
                         if (!_groundCanvasReady) {
-                            // lazy init ground canvas to map-size should have been set by caller; default to 2560x2560 as fallback
                             if (!createGroundCanvas(2560, 2560)) {
                                 _groundCanvasReady = false;
-                            } else {
+                            }
+                            else {
                                 _groundCanvas.clear(sf::Color::Transparent);
                                 _groundCanvasReady = true;
                                 flushPendingGroundQuads();
@@ -270,23 +339,22 @@ void Explosion::render(sf::RenderWindow& window){
                         }
                         if (_groundCanvasReady) {
                             addQuadToGroundCanvas(quad);
-                        } else {
-                            // fallback: draw directly to window
+                        }
+                        else {
                             window.draw(quad);
                         }
                     }
                     else {
-                        // transient particle: render to window
                         window.draw(quad);
                     }
                 }
                 else
                 {
-                    // traces always go to ground canvas
                     if (!_groundCanvasReady) {
                         if (!createGroundCanvas(2560, 2560)) {
                             _groundCanvasReady = false;
-                        } else {
+                        }
+                        else {
                             _groundCanvas.clear(sf::Color::Transparent);
                             _groundCanvasReady = true;
                             flushPendingGroundQuads();
@@ -300,18 +368,23 @@ void Explosion::render(sf::RenderWindow& window){
     }
 }
 
+// commitToGround: also guard outliers when stamping
 void Explosion::commitToGround() {
     if (_committedToGround) return;
-    // stamp all remaining particles as quads into the ground canvas (or pending buffer)
     bool hasTex = (_isBlood && Explosion::_texture.getSize().x > 0 && Explosion::_texture.getSize().y > 0);
+    const float maxDistSq = _maxAllowedDrawDistance * _maxAllowedDrawDistance;
     for (const Particle& p : _particles) {
+        if (!std::isfinite(p._x) || !std::isfinite(p._y)) continue;
+        float dx = p._x - _cx;
+        float dy = p._y - _cy;
+        if (dx * dx + dy * dy > maxDistSq) continue;
+
         float x = p._x;
         float y = p._y;
         if (hasTex) {
-            // create textured quad matching render()'s layout (without transient _ratio)
             sf::Vector2u ts = Explosion::_texture.getSize();
             float denom = static_cast<float>(std::max(1u, std::max(ts.x, ts.y)));
-            float scale = (p._size) / denom * 8.0f; // similar base scale used in render
+            float scale = (p._size) / denom * 8.0f;
             float hw = (static_cast<float>(ts.x) * scale) * 0.5f;
             float hh = (static_cast<float>(ts.y) * scale) * 0.5f;
             float rotDeg = std::atan2(p._vy, p._vx) * 180.f / 3.14159265f;
@@ -331,14 +404,15 @@ void Explosion::commitToGround() {
                 quad[i].color = p._color;
             }
             addQuadToGroundCanvas(quad, &Explosion::_texture);
-        } else {
+        }
+        else {
             float sx = p._size * p._vax;
             float sy = p._size * p._vay;
             sf::VertexArray quad(sf::Quads, 4);
-            quad[0] = sf::Vertex(sf::Vector2f(x+sx, y+sy), p._color);
-            quad[1] = sf::Vertex(sf::Vector2f(x+sy, y-sx), p._color);
-            quad[2] = sf::Vertex(sf::Vector2f(x-sx, y-sy), p._color);
-            quad[3] = sf::Vertex(sf::Vector2f(x-sy, y+sx), p._color);
+            quad[0] = sf::Vertex(sf::Vector2f(x + sx, y + sy), p._color);
+            quad[1] = sf::Vertex(sf::Vector2f(x + sy, y - sx), p._color);
+            quad[2] = sf::Vertex(sf::Vector2f(x - sx, y - sy), p._color);
+            quad[3] = sf::Vertex(sf::Vector2f(x - sy, y + sx), p._color);
             addQuadToGroundCanvas(quad, nullptr);
         }
     }

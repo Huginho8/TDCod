@@ -193,9 +193,8 @@ void BaseZombie::onHitByBullet(const Vec2& hitPos, const Vec2& bulletVelocity, i
     ExplosionProvider::getHit(origin, std::atan2(bulletVelocity.y, bulletVelocity.x));
 
     if (remainingPenetrations > 0) {
-        // on final penetration spawn a through effect
+        // on penetration spawn a through effect
         ExplosionProvider::getThrough(origin, std::atan2(bulletVelocity.y, bulletVelocity.x));
-        ExplosionProvider::getHit(Vec2(body.position.x, body.position.y), 0.0f);
     }
 }
 
