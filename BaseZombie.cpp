@@ -1,6 +1,7 @@
 #include "BaseZombie.h"
 #include <iostream>
 #include <cmath>
+#include <algorithm>
 #include "ExplosionProvider.hpp"
 #include "Guts.hpp"
 
@@ -115,19 +116,30 @@ void BaseZombie::draw(sf::RenderWindow& window) const {
     }
 
     if (!dead) {
-        float barWidth = 50.0f;
-        float barHeight = 5.0f;
+        // Narrower health bar, darker background, positioned closer to the zombie (uses interpolated position)
+        float barWidth = 36.0f;
+        float barHeight = 6.0f;
+        float verticalOffset = 30.0f; // hover closer (smaller = closer)
+
+        float healthPercent = 1.0f;
+        if (maxHealth > 0.0f) healthPercent = health / maxHealth;
+        if (healthPercent < 0.0f) healthPercent = 0.0f;
+        if (healthPercent > 1.0f) healthPercent = 1.0f;
+
+        // Background (darker)
         sf::RectangleShape healthBarBackground;
         healthBarBackground.setSize(sf::Vector2f(barWidth, barHeight));
-        healthBarBackground.setFillColor(sf::Color(100, 100, 100, 150));
-        healthBarBackground.setPosition(body.position.x - barWidth / 2, body.position.y - 50);
+        healthBarBackground.setFillColor(sf::Color(40, 40, 40, 220));
+        healthBarBackground.setOrigin(barWidth * 0.5f, barHeight * 0.5f);
+        healthBarBackground.setPosition(interp.x, interp.y - verticalOffset);
 
+        // Foreground bar (centered within background)
         sf::RectangleShape healthBar;
-        float healthPercent = health / maxHealth;
-        if (healthPercent < 0) healthPercent = 0;
         healthBar.setSize(sf::Vector2f(barWidth * healthPercent, barHeight));
-        healthBar.setFillColor(sf::Color::Red);
-        healthBar.setPosition(body.position.x - barWidth / 2, body.position.y - 50);
+        healthBar.setFillColor(sf::Color(200, 30, 30, 220));
+        // center the foreground by setting origin to half of its current width
+        healthBar.setOrigin((barWidth * healthPercent) * 0.5f, barHeight * 0.5f);
+        healthBar.setPosition(interp.x, interp.y - verticalOffset);
 
         window.draw(healthBarBackground);
         window.draw(healthBar);
