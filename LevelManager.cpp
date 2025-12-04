@@ -650,6 +650,37 @@ void LevelManager::loadLevel(int levelNumber) {
     }
 }
 
+void LevelManager::restartCurrentRound(const sf::Vector2f& playerPos) {
+        // Clear active zombies & recycle pool indices (same pattern used in loadLevel/reset)
+        for (auto zb : zombies) {
+        if (physicsWorld) physicsWorld->removeBody(&zb->getBody());
+        auto mit = poolIndexByPtr.find(zb);
+        if (mit != poolIndexByPtr.end()) {
+            freeZombieIndices.push_back(mit->second);
+            poolIndexByPtr.erase(mit);
+            
+        }
+        
+    }
+    zombies.clear();
+    zombiesToSpawn.clear();
+    
+    // Reset per-round counters but keep currentLevel and currentRound unchanged
+    zombiesSpawnedInRound = 0;
+    zombiesKilledInRound = 0;
+    zombieSpawnTimer = 0.0f;
+    roundStarted = false;
+    
+    // Ensure pool is large enough for this round and requeue spawns for the current round
+    ZombieRoundConfig cfg;
+    if (gameState == GameState::TUTORIAL) cfg = tutorialConfig;
+    else cfg = roundConfigs[std::min(std::max(0, currentRound), 4)];
+    ensurePoolSize(cfg.count);
+    
+    // spawnZombies will read currentRound and pick the correct round config
+    spawnZombies(0, playerPos);
+}
+
 int LevelManager::getTotalRoundsForLevel(int level) const {
     switch (level) {
         case 1: return 2;
@@ -1415,7 +1446,7 @@ void LevelManager::initializeDefaultConfigs() {
     tutorialConfig.animSpeed = 0.12f;
 
     // Round configs (5 rounds)
-    roundConfigs[0].count = 1; roundConfigs[0].health = 40.0f; roundConfigs[0].damage = 18.0f; roundConfigs[0].speed = 80.0f; roundConfigs[0].animSpeed = 0.11f;
+    roundConfigs[0].count = 50; roundConfigs[0].health = 40.0f; roundConfigs[0].damage = 18.0f; roundConfigs[0].speed = 80.0f; roundConfigs[0].animSpeed = 0.11f;
     roundConfigs[1].count = 1; roundConfigs[1].health = 40.0f; roundConfigs[1].damage = 20.0f; roundConfigs[1].speed = 90.0f; roundConfigs[1].animSpeed = 0.10f;
     roundConfigs[2].count = 1; roundConfigs[2].health = 40.0f; roundConfigs[2].damage = 22.0f; roundConfigs[2].speed = 92.0f; roundConfigs[2].animSpeed = 0.095f;
     roundConfigs[3].count = 1; roundConfigs[3].health = 50.0f; roundConfigs[3].damage = 25.0f; roundConfigs[3].speed = 95.0f; roundConfigs[3].animSpeed = 0.09f;

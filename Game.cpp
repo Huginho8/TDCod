@@ -1645,6 +1645,252 @@ void Game::render() {
         window.draw(backText);
     }
 
+    // If paused and showingSettings, draw the settings panel (matches controls layout style)
+    if (paused && showingSettings) {
+        sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
+        sf::RectangleShape panel(panelSize);
+        panel.setFillColor(sf::Color(20, 20, 20, 255));
+        panel.setOutlineColor(sf::Color::White);
+        panel.setOutlineThickness(2.f);
+        panel.setOrigin(panel.getSize().x / 2.f, panel.getSize().y / 2.f);
+
+        float titleBottom = static_cast<float>(window.getSize().y) / 5.0f; // approximate title area
+        float gap = 20.f;
+        const float PANEL_EXTRA_OFFSET = 80.f;
+        float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panel.getSize().y / 2.f;
+        panel.setPosition(window.getSize().x / 2.f, panelCenterY);
+        window.draw(panel);
+
+        sf::Text title;
+        title.setFont(font); title.setCharacterSize(52); title.setFillColor(sf::Color::White);
+        title.setString("Settings");
+        sf::FloatRect tbb = title.getLocalBounds();
+        title.setOrigin(tbb.left + tbb.width / 2.f, tbb.top + tbb.height / 2.f);
+        title.setPosition(panel.getPosition().x, panel.getPosition().y - panel.getSize().y / 2.f + 40.f);
+        window.draw(title);
+
+        // compute layout for sliders
+        float sliderWidth = panelSize.x * 0.55f;
+        float sliderX = panel.getPosition().x - sliderWidth / 2.f;
+        float panelTop = panel.getPosition().y - panelSize.y / 2.f;
+        float rowYStart = panelTop + 130.f;
+        float rowSpacing = 60.f;
+
+        // draw horizontal rule for header (reuse faded style)
+        {
+            float sepThickness = 2.f;
+            float sepWidth = panel.getSize().x - panel.getOutlineThickness() * 2.f;
+            float xL = panel.getPosition().x - sepWidth / 2.f;
+            float xR = panel.getPosition().x + sepWidth / 2.f;
+            float edgeFade = std::min(80.f, sepWidth * 0.18f);
+            float centerLeft = xL + edgeFade;
+            float centerRight = xR - edgeFade;
+            float sepY = title.getPosition().y + tbb.height / 2.f + 12.f;
+            sf::Color colOpaque(200, 200, 200, 220);
+            sf::Color colTransparent = colOpaque; colTransparent.a = 0;
+            if (centerRight > centerLeft) {
+                sf::RectangleShape centerRect(sf::Vector2f(centerRight - centerLeft, sepThickness));
+                centerRect.setPosition(centerLeft, sepY);
+                centerRect.setFillColor(colOpaque);
+                window.draw(centerRect);
+            }
+            if (centerLeft > xL + 1.f) {
+                sf::VertexArray leftGrad(sf::Triangles, 6);
+                leftGrad[0] = sf::Vertex(sf::Vector2f(xL, sepY), colTransparent);
+                leftGrad[1] = sf::Vertex(sf::Vector2f(centerLeft, sepY), colOpaque);
+                leftGrad[2] = sf::Vertex(sf::Vector2f(centerLeft, sepY + sepThickness), colOpaque);
+                leftGrad[3] = sf::Vertex(sf::Vector2f(xL, sepY), colTransparent);
+                leftGrad[4] = sf::Vertex(sf::Vector2f(centerLeft, sepY + sepThickness), colOpaque);
+                leftGrad[5] = sf::Vertex(sf::Vector2f(xL, sepY + sepThickness), colTransparent);
+                window.draw(leftGrad);
+            }
+            if (centerRight < xR - 1.f) {
+                sf::VertexArray rightGrad(sf::Triangles, 6);
+                rightGrad[0] = sf::Vertex(sf::Vector2f(centerRight, sepY), colOpaque);
+                rightGrad[1] = sf::Vertex(sf::Vector2f(xR, sepY), colTransparent);
+                rightGrad[2] = sf::Vertex(sf::Vector2f(xR, sepY + sepThickness), colTransparent);
+                rightGrad[3] = sf::Vertex(sf::Vector2f(centerRight, sepY), colOpaque);
+                rightGrad[4] = sf::Vertex(sf::Vector2f(xR, sepY + sepThickness), colTransparent);
+                rightGrad[5] = sf::Vertex(sf::Vector2f(centerRight, sepY + sepThickness), colOpaque);
+                window.draw(rightGrad);
+            }
+        }
+
+        // Helper drawing values
+        auto drawSlider = [&](const std::string& labelStr, float valuePct, float y) {
+            // background bar
+            float barH = 12.f;
+            sf::RectangleShape bg(sf::Vector2f(sliderWidth, barH));
+            bg.setPosition(sliderX, y - barH / 2.f);
+            bg.setFillColor(sf::Color(60, 60, 60, 220));
+            bg.setOutlineColor(sf::Color(120, 120, 120, 200));
+            bg.setOutlineThickness(1.f);
+            window.draw(bg);
+
+            // filled portion
+            float fillW = sliderWidth * std::clamp(valuePct, 0.f, 1.f);
+            if (fillW > 0.0f) {
+                sf::RectangleShape fill(sf::Vector2f(fillW, barH));
+                fill.setPosition(sliderX, y - barH / 2.f);
+                fill.setFillColor(sf::Color(200, 200, 200, 220));
+                window.draw(fill);
+            }
+
+            // thumb
+            float thumbX = sliderX + fillW;
+            float thumbR = 8.f;
+            sf::CircleShape thumb(thumbR);
+            thumb.setOrigin(thumbR, thumbR);
+            thumb.setPosition(thumbX, y);
+            thumb.setFillColor(sf::Color::White);
+            thumb.setOutlineColor(sf::Color(40, 40, 40));
+            thumb.setOutlineThickness(1.f);
+            window.draw(thumb);
+
+            // label on left of slider
+            sf::Text lbl; lbl.setFont(font2); lbl.setCharacterSize(20); lbl.setFillColor(sf::Color::White); lbl.setString(labelStr);
+            sf::FloatRect lb = lbl.getLocalBounds();
+            lbl.setPosition(sliderX - lb.width - 16.f, y - lb.height / 2.f - lb.top);
+            window.draw(lbl);
+
+            // numeric percent on right of slider
+            sf::Text pct; pct.setFont(font2); pct.setCharacterSize(18); pct.setFillColor(sf::Color::White);
+            int iv = static_cast<int>(std::round(valuePct * 100.f));
+            pct.setString(std::to_string(iv) + "%");
+            sf::FloatRect pb = pct.getLocalBounds();
+            pct.setPosition(sliderX + sliderWidth + 16.f, y - pb.height / 2.f - pb.top);
+            window.draw(pct);
+            };
+
+        // Rows: Master, Music, SFX
+        float y0 = rowYStart;
+        drawSlider("Master", masterMuted ? 0.f : (masterVolume / 100.f), y0);
+        drawSlider("Music", musicMuted ? 0.f : (musicVolume / 100.f), y0 + rowSpacing);
+        drawSlider("SFX", sfxMuted ? 0.f : (sfxVolume / 100.f), y0 + rowSpacing * 2.f);
+
+        // Draw mute checkboxes to the right of sliders
+        float muteX = sliderX + sliderWidth + 60.f;
+        float muteW = 22.f, muteH = 22.f;
+        auto drawMuteBox = [&](bool muted, float x, float y) {
+            sf::RectangleShape box(sf::Vector2f(muteW, muteH));
+            box.setPosition(x, y - muteH / 2.f);
+            box.setFillColor(sf::Color(30, 30, 30, 200));
+            box.setOutlineThickness(1.f);
+            box.setOutlineColor(sf::Color(120, 120, 120));
+            window.draw(box);
+            if (muted) {
+                // draw an X
+                sf::VertexArray vx(sf::Lines, 4);
+                sf::Color col(255, 200, 80);
+                vx[0] = sf::Vertex(sf::Vector2f(x + 4.f, y - 4.f), col);
+                vx[1] = sf::Vertex(sf::Vector2f(x + muteW - 4.f, y + 4.f), col);
+                vx[2] = sf::Vertex(sf::Vector2f(x + 4.f, y + 4.f), col);
+                vx[3] = sf::Vertex(sf::Vector2f(x + muteW - 4.f, y - 4.f), col);
+                window.draw(vx);
+            }
+            };
+
+        drawMuteBox(masterMuted, muteX, y0);
+        drawMuteBox(musicMuted, muteX, y0 + rowSpacing);
+        drawMuteBox(sfxMuted, muteX, y0 + rowSpacing * 2.f);
+
+        // Back button at bottom-right inside settings panel (match controls)
+        const unsigned int BACK_CHAR_SIZE = 36u;
+        const float ICON_W = 52.f;
+        const float ICON_PAD = 12.f;
+        sf::Text tmpBack2; tmpBack2.setFont(font); tmpBack2.setCharacterSize(BACK_CHAR_SIZE); tmpBack2.setString("Back");
+        sf::FloatRect backBounds2 = tmpBack2.getLocalBounds();
+        float backWidth2 = backBounds2.width + backBounds2.left + 28.f + ICON_W + ICON_PAD;
+        float backHeight2 = backBounds2.height + backBounds2.top + 20.f;
+        sf::Vector2f backPos2(panel.getPosition().x + panel.getSize().x / 2.f - BACK_PANEL_MARGIN - backWidth2,
+            panel.getPosition().y + panel.getSize().y / 2.f - BACK_PANEL_MARGIN - backHeight2);
+
+        // separator above back button
+        {
+            float lineThickness = 2.f;
+            float lineY = backPos2.y - 12.f;
+            float lx_full = panel.getPosition().x - panel.getSize().x / 2.f + 28.f;
+            float rx_full = panel.getPosition().x + panel.getSize().x / 2.f - 28.f;
+            float edgeFadeLocal = std::min(40.f, (rx_full - lx_full) * 0.18f);
+            float centerL = lx_full + edgeFadeLocal;
+            float centerR = rx_full - edgeFadeLocal;
+            sf::Color colOpaque(200, 200, 200, 220);
+            sf::Color colTransparentLocal = colOpaque; colTransparentLocal.a = 0;
+            if (centerR > centerL) {
+                sf::RectangleShape centerRect(sf::Vector2f(centerR - centerL, lineThickness));
+                centerRect.setPosition(centerL, lineY);
+                centerRect.setFillColor(colOpaque);
+                window.draw(centerRect);
+            }
+            if (centerL > lx_full + 1.f) {
+                sf::VertexArray leftGrad(sf::Triangles, 6);
+                leftGrad[0] = sf::Vertex(sf::Vector2f(lx_full, lineY), colTransparentLocal);
+                leftGrad[1] = sf::Vertex(sf::Vector2f(centerL, lineY), colOpaque);
+                leftGrad[2] = sf::Vertex(sf::Vector2f(centerL, lineY + lineThickness), colOpaque);
+                leftGrad[3] = sf::Vertex(sf::Vector2f(lx_full, lineY), colTransparentLocal);
+                leftGrad[4] = sf::Vertex(sf::Vector2f(centerL, lineY + lineThickness), colOpaque);
+                leftGrad[5] = sf::Vertex(sf::Vector2f(lx_full, lineY + lineThickness), colTransparentLocal);
+                window.draw(leftGrad);
+            }
+            if (centerR < rx_full - 1.f) {
+                sf::VertexArray rightGrad(sf::Triangles, 6);
+                rightGrad[0] = sf::Vertex(sf::Vector2f(centerR, lineY), colOpaque);
+                rightGrad[1] = sf::Vertex(sf::Vector2f(rx_full, lineY), colTransparentLocal);
+                rightGrad[2] = sf::Vertex(sf::Vector2f(rx_full, lineY + lineThickness), colTransparentLocal);
+                rightGrad[3] = sf::Vertex(sf::Vector2f(centerR, lineY), colOpaque);
+                rightGrad[4] = sf::Vertex(sf::Vector2f(rx_full, lineY + lineThickness), colTransparentLocal);
+                rightGrad[5] = sf::Vertex(sf::Vector2f(centerR, lineY + lineThickness), colOpaque);
+                window.draw(rightGrad);
+            }
+        }
+
+        // detect hover over back button
+        sf::Vector2i mousePixelUI2 = sf::Mouse::getPosition(window);
+        sf::Vector2f mouseUI2 = window.mapPixelToCoords(mousePixelUI2, window.getDefaultView());
+        sf::FloatRect backRect2(backPos2.x, backPos2.y, backWidth2, backHeight2);
+        bool backHovered2 = backRect2.contains(mouseUI2);
+        if (backHovered2 && !lastBackHovered) { if (uiHoverSound.getBuffer()) uiHoverSound.play(); }
+        lastBackHovered = backHovered2;
+
+        sf::RectangleShape backBorder2(sf::Vector2f(backWidth2, backHeight2));
+        backBorder2.setFillColor(sf::Color::Transparent);
+        backBorder2.setOutlineColor(backHovered2 ? sf::Color::Yellow : sf::Color::White);
+        backBorder2.setOutlineThickness(2.f);
+        backBorder2.setOrigin(0.f, 0.f);
+        backBorder2.setPosition(backPos2);
+        window.draw(backBorder2);
+
+        // icon slot
+        float slotW2 = ICON_W;
+        float slotH2 = backHeight2 - 12.f;
+        sf::RectangleShape iconSlot2(sf::Vector2f(slotW2, slotH2));
+        iconSlot2.setPosition(backPos2.x + 8.f, backPos2.y + 6.f);
+        iconSlot2.setFillColor(sf::Color(24, 24, 24, 200));
+        iconSlot2.setOutlineThickness(1.f);
+        iconSlot2.setOutlineColor(sf::Color(80, 80, 80, 200));
+        if (backIconTexture.getSize().x > 0) {
+            sf::Vector2u bts = backIconTexture.getSize();
+            float scale = std::min(slotH2 / static_cast<float>(bts.y), slotW2 / static_cast<float>(bts.x));
+            backIconSprite.setScale(scale, scale);
+            float spriteW = bts.x * scale;
+            float spriteX = backPos2.x + 8.f + (slotW2 - spriteW) * 0.5f;
+            float spriteY = backPos2.y + 6.f + (slotH2 - bts.y * scale) * 0.5f;
+            backIconSprite.setPosition(spriteX, spriteY);
+            if (backHovered2) { sf::Color prevCol = backIconSprite.getColor(); backIconSprite.setColor(sf::Color(255, 255, 180)); window.draw(backIconSprite); backIconSprite.setColor(prevCol); }
+            else window.draw(backIconSprite);
+        }
+        else {
+            window.draw(iconSlot2);
+        }
+
+        sf::Text backText2; backText2.setFont(font); backText2.setCharacterSize(BACK_CHAR_SIZE); backText2.setString("Back"); backText2.setFillColor(backHovered2 ? sf::Color::Yellow : sf::Color::White);
+        sf::FloatRect tb2 = backText2.getLocalBounds();
+        float tx2 = backPos2.x + 8.f + ICON_W + ICON_PAD;
+        float ty2 = backPos2.y + (backHeight2 - tb2.height) / 2.f - tb2.top;
+        backText2.setPosition(tx2, ty2);
+        window.draw(backText2);
+    }
+
     // Draw GAME OVER text when triggered (fades in)
     if (gameOverTriggered && gameOverAlpha > 0.001f) {
         sf::Text goText;
@@ -1925,10 +2171,14 @@ int Game::getPoints() const {
 }
 
 void Game::reset() {
-    levelManager.reset();
+    // Restart the player at the same level/round they died on.
+    // Reset player state and physics, then tell LevelManager to restart the current round.
     player.reset();
     // Re-register player's physics body with the physics world in case it was removed on death
     physics.addBody(&player.getBody(), false);
+    // Restart current round where the player died; use player's position for spawn reference
+    levelManager.restartCurrentRound(player.getPosition());
+
     // Debug: print player motion state to help diagnose lingering slowdown after retry
     std::cout << "[DEBUG] Player reset: knockbackTimer=" << player.knockbackTimer
               << " knockbackMoveMultiplier=" << player.knockbackMoveMultiplier

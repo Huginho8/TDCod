@@ -59,6 +59,7 @@ public:
     void loadLevel(int levelNumber);
     int getCurrentLevel() const;
     int getCurrentRound() const;
+    void restartCurrentRound(const sf::Vector2f& playerPos);
     int getTotalRoundsForLevel(int level) const;
     
     void spawnZombies(int count, sf::Vector2f playerPos);
