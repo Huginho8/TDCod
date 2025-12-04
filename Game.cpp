@@ -416,6 +416,7 @@ Game::Game()
         uiClickSound.setBuffer(uiClickBuffer);
         uiClickSound.setVolume(60.f);
     }
+    applyAudioSettings();
 }
 
 void Game::run() {
@@ -2223,4 +2224,13 @@ void Game::applyAudioSettings() {
     uiHoverSound.setVolume(volSfx);
     uiClickSound.setVolume(volSfx);
     for (auto &s : zombieBiteSounds) s.setVolume(volSfx);
+
+    float combinedPercent = (masterVolume * sfxVolume) / 100.0f;
+    player.setMasterSfxVolume(combinedPercent);
+    player.setMasterSfxMuted(masterMuted || sfxMuted);
+
+    // NEW: propagate to Bullet so hit/kill pools follow the same combined SFX setting.
+    // Note: Bullet::setGlobalSfxVolume expects 0..100 percent
+    Bullet::setGlobalSfxVolume(combinedPercent);
+    Bullet::setGlobalSfxMuted(masterMuted || sfxMuted);
 }

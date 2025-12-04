@@ -7,9 +7,6 @@
 // Local static audio resources for hit/kill sounds (lazy-loaded)
 static sf::SoundBuffer s_bHitBuf;
 static sf::SoundBuffer s_bKillBuf;
-// static sf::Sound s_hitSound;
-// static sf::Sound s_killSound;
-// static bool s_soundsLoaded = false;
 
 // small pools to allow overlapping play without cutting previous sounds
 static std::vector<sf::Sound> s_hitSoundsPool;
@@ -20,10 +17,26 @@ static bool s_soundsLoaded = false;
 
 static constexpr size_t SOUND_POOL_SIZE = 8; // allow up to 8 overlapping instances
 
+// Base volumes used as reference; applied with master percent multiplier
+static float s_baseHitVolume = 85.f;
+static float s_baseKillVolume = 100.f;
+
+// Master percent / mute state applied to pools (0..100)
+static float s_masterSfxPercent = 100.f;
+static bool s_masterSfxMuted = false;
+
 static void initSoundPoolsIfNeeded() {
     if (!s_hitSoundsPool.empty() && !s_killSoundsPool.empty()) return;
     s_hitSoundsPool.resize(SOUND_POOL_SIZE);
     s_killSoundsPool.resize(SOUND_POOL_SIZE);
+}
+
+static void applyMasterToPools() {
+    float mul = s_masterSfxMuted ? 0.f : (s_masterSfxPercent / 100.0f);
+    float hitVol = s_baseHitVolume * mul;
+    float killVol = s_baseKillVolume * mul;
+    for (auto& s : s_hitSoundsPool) s.setVolume(hitVol);
+    for (auto& s : s_killSoundsPool) s.setVolume(killVol);
 }
 
 static void loadHitKillSounds() {
@@ -34,31 +47,45 @@ static void loadHitKillSounds() {
 
     if (!s_bHitBuf.loadFromFile(hitPath)) {
         std::cerr << "Warning: failed to load hit sound: " << hitPath << std::endl;
-    } else {
+    }
+    else {
         initSoundPoolsIfNeeded();
-        for (auto &s : s_hitSoundsPool) {
+        for (auto& s : s_hitSoundsPool) {
             s.setBuffer(s_bHitBuf);
-            s.setVolume(85.f);
+            // set volume according to base * master percent
+            s.setVolume(s_baseHitVolume * (s_masterSfxMuted ? 0.f : s_masterSfxPercent / 100.f));
         }
     }
 
     if (!s_bKillBuf.loadFromFile(killPath)) {
         std::cerr << "Warning: failed to load kill sound: " << killPath << std::endl;
-    } else {
+    }
+    else {
         initSoundPoolsIfNeeded();
-        for (auto &s : s_killSoundsPool) {
+        for (auto& s : s_killSoundsPool) {
             s.setBuffer(s_bKillBuf);
-            s.setVolume(100.f);
+            s.setVolume(s_baseKillVolume * (s_masterSfxMuted ? 0.f : s_masterSfxPercent / 100.f));
         }
     }
 
     s_soundsLoaded = true;
 }
 
+// NEW: public API to control global SFX for hit/kill pools
+void Bullet::setGlobalSfxVolume(float percent) {
+    s_masterSfxPercent = std::clamp(percent, 0.0f, 100.0f);
+    applyMasterToPools();
+}
+
+void Bullet::setGlobalSfxMuted(bool muted) {
+    s_masterSfxMuted = muted;
+    applyMasterToPools();
+}
+
 sf::Texture Bullet::bulletTexture;
 
 Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations, float damage,
-               sf::Vector2f spriteOffsetIn, float spriteScaleIn, float rotationOffsetIn)
+    sf::Vector2f spriteOffsetIn, float spriteScaleIn, float rotationOffsetIn)
     : Entity(EntityType::Bullet, position, Vec2(8.f, 8.f), false, mass, true),
     remainingPenetrations(maxPenetrations),
     initialPenetrations(maxPenetrations),
@@ -73,7 +100,7 @@ Bullet::Bullet(Vec2 position, Vec2 velocity, float mass, int maxPenetrations, fl
     body.getCircleShape().setRadius(4.f);
     body.getCircleShape().setOrigin(4.f, 4.f);
     body.getCircleShape().setFillColor(sf::Color::Yellow);
-    
+
     // Load texture for bullet
     sprite.setTexture(Bullet::bulletTexture);
     sprite.setOrigin(Bullet::bulletTexture.getSize().x / 2.f, Bullet::bulletTexture.getSize().y / 2.f);
@@ -116,7 +143,7 @@ void Bullet::render(sf::RenderWindow& window) {
 
     // Rotate offset vector by the bullet rotation so offset follows facing
     sf::Vector2f rotatedOffset(spriteOffset.x * cs - spriteOffset.y * sn,
-                               spriteOffset.x * sn + spriteOffset.y * cs);
+        spriteOffset.x * sn + spriteOffset.y * cs);
 
     sprite.setPosition(interp.x + rotatedOffset.x, interp.y + rotatedOffset.y);
     sprite.setRotation(deg + rotationOffset);
@@ -150,7 +177,8 @@ void Bullet::onCollision(Entity* other) {
                         s_killSoundsPool[s_killIndex % s_killSoundsPool.size()].play();
                         s_killIndex = (s_killIndex + 1) % s_killSoundsPool.size();
                     }
-                } else {
+                }
+                else {
                     if (!s_hitSoundsPool.empty() && s_bHitBuf.getSampleCount() > 0) {
                         s_hitSoundsPool[s_hitIndex % s_hitSoundsPool.size()].stop();
                         s_hitSoundsPool[s_hitIndex % s_hitSoundsPool.size()].play();

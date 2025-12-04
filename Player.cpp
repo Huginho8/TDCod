@@ -1123,21 +1123,21 @@ void Player::loadTextures() {
 void Player::setPistolSoundBuffer(const sf::SoundBuffer& buf) {
     pistolAttackBuffer = buf;
     pistolAttackSound.setBuffer(pistolAttackBuffer);
-    pistolAttackSound.setVolume(100);
     pistolSoundIndex = 0;
     pistolSoundPool.clear();
     pistolSoundPool.resize(6);
-    for (auto& s : pistolSoundPool) { s.setBuffer(pistolAttackBuffer); s.setVolume(50); }
+    for (auto& s : pistolSoundPool) { s.setBuffer(pistolAttackBuffer); }
+    applyMasterSfxVolume();
 }
 
 void Player::setRifleSoundBuffer(const sf::SoundBuffer& buf) {
     rifleAttackBuffer = buf;
     rifleAttackSound.setBuffer(rifleAttackBuffer);
-    rifleAttackSound.setVolume(100);
     rifleSoundIndex = 0;
     rifleSoundPool.clear();
     rifleSoundPool.resize(6);
-    for (auto& s : rifleSoundPool) { s.setBuffer(rifleAttackBuffer); s.setVolume(100); s.setAttenuation(0.f); s.setRelativeToListener(true); s.setMinDistance(1.f); }
+    for (auto& s : rifleSoundPool) { s.setBuffer(rifleAttackBuffer); s.setAttenuation(0.f); s.setRelativeToListener(true); s.setMinDistance(1.f); }
+    applyMasterSfxVolume();
 }
 
 // Walking sound
@@ -1145,7 +1145,7 @@ void Player::setWalkingSoundBuffer(const sf::SoundBuffer& buf) {
     walkingBuffer = buf;
     walkingSound.setBuffer(walkingBuffer);
     walkingSound.setLoop(true);
-    walkingSound.setVolume(90);
+    applyMasterSfxVolume();
 }
 
 void Player::setStepSoundBuffers(const std::vector<sf::SoundBuffer>& bufs) {
@@ -1156,28 +1156,66 @@ void Player::setStepSoundBuffers(const std::vector<sf::SoundBuffer>& bufs) {
     stepSoundInstances.resize(poolSize);
     for (size_t i = 0; i < poolSize; ++i) {
         if (!stepBuffers.empty()) stepSoundInstances[i].setBuffer(stepBuffers[i % stepBuffers.size()]);
-        stepSoundInstances[i].setVolume(80);
     }
     stepTimer = 0.0f;
     stepIndex = 0;
     lastStepInstance = 0;
+    applyMasterSfxVolume();
 }
 
 // --- Missing method implementations (linker fixes) ---
 void Player::setPistolReloadSoundBuffer(const sf::SoundBuffer& buf) {
     pistolReloadBuffer = buf;
     pistolReloadSound.setBuffer(pistolReloadBuffer);
-    pistolReloadSound.setVolume(100);
     pistolReloadSound.setAttenuation(0.f);
     pistolReloadSound.setRelativeToListener(true);
+    applyMasterSfxVolume();
 }
 
 void Player::setRifleReloadSoundBuffer(const sf::SoundBuffer& buf) {
     rifleReloadBuffer = buf;
     rifleReloadSound.setBuffer(rifleReloadBuffer);
-    rifleReloadSound.setVolume(100);
     rifleReloadSound.setAttenuation(0.f);
     rifleReloadSound.setRelativeToListener(true);
+    applyMasterSfxVolume();
+}
+
+// --- New: master SFX control implementation ---
+// percent: 0..100
+void Player::setMasterSfxVolume(float percent) {
+    masterSfxVolume = std::clamp(percent, 0.0f, 100.0f);
+    applyMasterSfxVolume();
+}
+
+void Player::setMasterSfxMuted(bool muted) {
+    masterSfxMuted = muted;
+    applyMasterSfxVolume();
+}
+
+float Player::getMasterSfxVolume() const {
+    return masterSfxVolume;
+}
+
+bool Player::isMasterSfxMuted() const {
+    return masterSfxMuted;
+}
+
+// Helper to apply master multiplier to all player-managed sounds.
+// Called whenever base volumes or master volume/mute state change.
+void Player::applyMasterSfxVolume() {
+    float mul = masterSfxMuted ? 0.0f : (masterSfxVolume / 100.0f);
+
+    // single-instance sounds
+    pistolAttackSound.setVolume(basePistolAttackVolume * mul);
+    rifleAttackSound.setVolume(baseRifleAttackVolume * mul);
+    walkingSound.setVolume(baseWalkingVolume * mul);
+    pistolReloadSound.setVolume(baseReloadVolume * mul);
+    rifleReloadSound.setVolume(baseReloadVolume * mul);
+
+    // pool sounds
+    for (auto& s : pistolSoundPool) s.setVolume(basePistolPoolVolume * mul);
+    for (auto& s : rifleSoundPool) s.setVolume(baseRiflePoolVolume * mul);
+    for (auto& s : stepSoundInstances) s.setVolume(baseStepInstanceVolume * mul);
 }
 
 void Player::setState(PlayerState newState) {

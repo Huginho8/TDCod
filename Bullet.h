@@ -25,6 +25,11 @@ public:
 
     // Expose remaining penetrations for collision handler
     int getRemainingPenetrations() const { return remainingPenetrations; }
+
+    // allow global SFX control for hit / kill pools(percent 0..100, muted)
+    static void setGlobalSfxVolume(float percent);
+    static void setGlobalSfxMuted(bool muted);
+
 private:
     float damage;
     int remainingPenetrations;
