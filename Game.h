@@ -58,6 +58,7 @@ private:
     bool shootRequested = false;
     sf::Vector2f shootTarget;
 
+	void drawVictoryScreen();
     void processInput();
     void update(float deltaTime);
     void render();

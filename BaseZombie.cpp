@@ -186,14 +186,14 @@ void BaseZombie::kill() {
 }
 
 void BaseZombie::onHitByBullet(const Vec2& hitPos, const Vec2& bulletVelocity, int remainingPenetrations) {
-    // Use zombie's body position as origin for effects to ensure they appear on the zombie
-    Vec2 origin(body.position.x, body.position.y);
+    // Use the actual hit position for effects so impact appears where the bullet hits
+    Vec2 origin(hitPos.x, hitPos.y);
 
-    // Spawn base hit effect
+    // Spawn base hit effect at the impact point
     ExplosionProvider::getHit(origin, std::atan2(bulletVelocity.y, bulletVelocity.x));
 
     if (remainingPenetrations > 0) {
-        // on penetration spawn a through effect
+        // on penetration spawn a through effect at the impact point
         ExplosionProvider::getThrough(origin, std::atan2(bulletVelocity.y, bulletVelocity.x));
     }
 }

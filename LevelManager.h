@@ -136,7 +136,7 @@ private:
     std::vector<std::string> tutorialDialogs;
     int currentDialogIndex;
     sf::Text dialogText;
-    sf::Font font;
+    sf::Font font4;
     sf::Font font2;
     sf::Font font3;
     sf::RectangleShape dialogBox;

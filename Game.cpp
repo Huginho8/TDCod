@@ -14,6 +14,10 @@ static bool obbIntersectsAabb(const sf::Vector2f& c, const sf::Vector2f& he, flo
 // Back button margin from panel edge (keeps it fully inside) - same as scene.cpp
 static constexpr float BACK_PANEL_MARGIN = 12.f;
 
+// clickable hit rect for Victory EXIT (UI/default-view coords)
+static sf::FloatRect s_victoryExitRect(0.f, 0.f, 0.f, 0.f);
+static bool s_victoryWasHovered = false;
+
 Game::Game()
     : window(),
     player(Vec2(400, 300)),
@@ -184,7 +188,7 @@ Game::Game()
     int idleW = 132, idleH = 155; // idle single image
     int walkW = 172, walkH = 124;
     int runW = 204, runH = 124;
-    // Feet strafes may be different sizes; set left/right explicitly
+    // Feet Strafes may be different sizes; set left/right explicitly
     int strafeLeftW = 155, strafeLeftH = 174;
     int strafeRightW = 154, strafeRightH = 176; // update if different
 
@@ -520,17 +524,20 @@ void Game::processInput() {
                     if (paused && showingControls) {
                         showingControls = false;
                         window.setMouseCursorVisible(true);
-                    } else if (paused && showingSettings) {
+                    }
+                    else if (paused && showingSettings) {
                         showingSettings = false;
                         window.setMouseCursorVisible(true);
-                    } else {
+                    }
+                    else {
                         paused = !paused;
                         showingControls = false;
                         showingSettings = false;
                         window.setMouseCursorVisible(paused);
                         shootRequested = false;
                     }
-                } else {
+                }
+                else {
                     window.close();
                 }
             }
@@ -548,186 +555,202 @@ void Game::processInput() {
         }
 
         if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
-            // Pause overlay handling
-            if (paused && !showingControls && !showingSettings) {
-                std::vector<std::string> labels = {"Resume", "Controls", "Settings", "Exit"};
-                unsigned int fontSize = static_cast<unsigned int>(std::min(160.f, static_cast<float>(window.getSize().y) / 15.f));
-                float spacing = static_cast<float>(fontSize) * 0.25f;
-                float centerX = static_cast<float>(window.getSize().x) * 0.5f;
-                float centerY = static_cast<float>(window.getSize().y) * 0.5f;
-
-                sf::Text proto; proto.setFont(font); proto.setCharacterSize(fontSize); proto.setString("Ay");
-                sf::FloatRect ph = proto.getLocalBounds();
-                float lineH = ph.height + ph.top;
-                float totalH = labels.size() * lineH + (labels.size() - 1) * spacing;
-                float startY = centerY - totalH * 0.5f;
-
-                sf::Vector2f world = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
-                for (size_t i = 0; i < labels.size(); ++i) {
-                    sf::Text t; t.setFont(font); t.setCharacterSize(fontSize); t.setString(labels[i]);
-                    sf::FloatRect tb = t.getLocalBounds();
-                    float tx = centerX - (tb.left + tb.width / 2.f);
-                    float ty = startY + static_cast<float>(i) * (lineH + spacing) + lineH * 0.5f - tb.top;
-                    sf::FloatRect hitRect(tx + tb.left, ty + tb.top, tb.width, tb.height);
-                    if (hitRect.contains(world)) {
-                        if (labels[i] == "Exit") {
-                            if (uiClickSound.getBuffer()) uiClickSound.play();
-                            window.close();
-                        } else if (labels[i] == "Resume") {
-                            if (uiClickSound.getBuffer()) uiClickSound.play();
-                            paused = false; showingControls = false; window.setMouseCursorVisible(false);
-                        } else if (labels[i] == "Controls") {
-                            if (uiClickSound.getBuffer()) uiClickSound.play();
-                            showingControls = !showingControls; window.setMouseCursorVisible(showingControls);
-                        } else if (labels[i] == "Settings") {
-                            if (uiClickSound.getBuffer()) uiClickSound.play();
-                            showingSettings = !showingSettings; window.setMouseCursorVisible(showingSettings);
-                        }
-                        break;
-                    }
-                }
-                continue; // consume click
-            }
-
-            // Controls panel Back button
-            if (paused && showingControls) {
-                sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
-                float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
-                float gap = 20.f;
-                const float PANEL_EXTRA_OFFSET = 80.f;
-                float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panelSize.y / 2.f;
-                sf::Vector2f panelPos(window.getSize().x / 2.f, panelCenterY);
-
-                const unsigned int BACK_CHAR_SIZE = 36u;
-                const float ICON_W = 52.f;
-                const float ICON_PAD = 12.f;
-                sf::Text tmpBack; tmpBack.setFont(font); tmpBack.setCharacterSize(BACK_CHAR_SIZE); tmpBack.setString("Back");
-                sf::FloatRect backBounds = tmpBack.getLocalBounds();
-                float backWidth = backBounds.width + backBounds.left + 28.f + ICON_W + ICON_PAD;
-                float backHeight = backBounds.height + backBounds.top + 20.f;
-                sf::Vector2f backPos(panelPos.x + panelSize.x / 2.f - BACK_PANEL_MARGIN - backWidth,
-                                     panelPos.y + panelSize.y / 2.f - BACK_PANEL_MARGIN - backHeight);
-
-                sf::Vector2f world = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
-                sf::FloatRect backRect(backPos.x, backPos.y, backWidth, backHeight);
-                if (backRect.contains(world)) {
-                    if (uiClickSound.getBuffer()) uiClickSound.play();
-                    showingControls = false; window.setMouseCursorVisible(true);
-                    continue;
-                }
-            }
-
-            // Settings panel hit tests
-            if (paused && showingSettings) {
-                sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
-                float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
-                float gap = 20.f;
-                const float PANEL_EXTRA_OFFSET = 80.f;
-                float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panelSize.y / 2.f;
-                sf::Vector2f panelPos(window.getSize().x / 2.f, panelCenterY);
-
-                float sliderWidth = panelSize.x * 0.55f;
-                float sliderX = panelPos.x - sliderWidth/2.f;
-                float panelTop = panelPos.y - panelSize.y/2.f;
-                float rowYStart = panelTop + 130.f;
-                float rowSpacing = 60.f;
-
-                sf::Vector2f mousef = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
-
-                float hr_left = 4.f; float hr_topOff = 6.f; float hr_extraW = 8.f; float hr_h = 20.f;
-                sf::FloatRect masterBarRect(sliderX - hr_left, rowYStart - hr_topOff, sliderWidth + hr_extraW, hr_h);
-                sf::FloatRect musicBarRect(sliderX - hr_left, rowYStart + rowSpacing - hr_topOff, sliderWidth + hr_extraW, hr_h);
-                sf::FloatRect sfxBarRect(sliderX - hr_left, rowYStart + rowSpacing*2 - hr_topOff, sliderWidth + hr_extraW, hr_h);
-
-                if (masterBarRect.contains(mousef)) { draggingSlider = 0; float p = (mousef.x - sliderX) / sliderWidth; masterVolume = std::clamp(p * 100.f, 0.f, 100.f); masterMuted = (masterVolume <= 0.0f); applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
-                if (musicBarRect.contains(mousef)) { draggingSlider = 1; float p = (mousef.x - sliderX) / sliderWidth; musicVolume = std::clamp(p * 100.f, 0.f, 100.f); musicMuted = (musicVolume <= 0.0f); applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
-                if (sfxBarRect.contains(mousef)) { draggingSlider = 2; float p = (mousef.x - sliderX) / sliderWidth; sfxVolume = std::clamp(p * 100.f, 0.f, 100.f); sfxMuted = (sfxVolume <= 0.0f); applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
-
-                float muteX = sliderX + sliderWidth + 60.f;
-                float muteW = 22.f, muteH = 22.f;
-                sf::FloatRect masterMuteRect(muteX, rowYStart - 6.f, muteW, muteH);
-                sf::FloatRect musicMuteRect(muteX, rowYStart + rowSpacing - 6.f, muteW, muteH);
-                sf::FloatRect sfxMuteRect(muteX, rowYStart + rowSpacing*2 - 6.f, muteW, muteH);
-                if (masterMuteRect.contains(mousef)) { masterMuted = !masterMuted; applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
-                if (musicMuteRect.contains(mousef)) { musicMuted = !musicMuted; applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
-                if (sfxMuteRect.contains(mousef)) { sfxMuted = !sfxMuted; applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
-
-                // Back button in settings
-                const unsigned int BACK_CHAR_SIZE = 36u;
-                const float ICON_W = 52.f;
-                const float ICON_PAD = 12.f;
-                sf::Text tmpBack; tmpBack.setFont(font); tmpBack.setCharacterSize(BACK_CHAR_SIZE); tmpBack.setString("Back");
-                sf::FloatRect backBounds = tmpBack.getLocalBounds();
-                float backWidth = backBounds.width + backBounds.left + 28.f + ICON_W + ICON_PAD;
-                float backHeight = backBounds.height + backBounds.top + 20.f;
-                sf::Vector2f backPos(panelPos.x + panelSize.x / 2.f - BACK_PANEL_MARGIN - backWidth,
-                                     panelPos.y + panelSize.y / 2.f - BACK_PANEL_MARGIN - backHeight);
-                sf::FloatRect backRect(backPos.x, backPos.y, backWidth, backHeight);
-                if (backRect.contains(mousef)) { if (uiClickSound.getBuffer()) uiClickSound.play(); showingSettings = false; window.setMouseCursorVisible(true); continue; }
-            }
-
-            // GAME OVER menu handling (clicks)
-            if (gameOverTriggered && gameOverMenuAlpha > 0.05f) {
-                unsigned int itemSize = static_cast<unsigned int>(std::min(124.f, static_cast<float>(window.getSize().y) * 0.08f));
-                float startY = static_cast<float>(window.getSize().y) * 0.50f;
-                float lineSpacing = static_cast<float>(window.getSize().y) * 0.1f;
-                std::vector<std::string> items = {"RETRY ROUND", "EXIT"};
-
-                sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
-                sf::Vector2f mouseUI = window.mapPixelToCoords(mousePixel, window.getDefaultView());
-
-                for (size_t i = 0; i < items.size(); ++i) {
-                    sf::Text it; it.setFont(font); it.setCharacterSize(itemSize); it.setStyle(sf::Text::Bold);
-                    it.setString(items[i]);
-                    sf::FloatRect ib = it.getLocalBounds();
-                    it.setOrigin(ib.left + ib.width / 2.f, ib.top + ib.height / 2.f);
-                    float y = startY + static_cast<float>(i) * lineSpacing;
-                    it.setPosition(static_cast<float>(window.getSize().x) * 0.5f, y);
-                    sf::FloatRect hit(it.getPosition().x - ib.width/2.f - 8.f, it.getPosition().y - ib.height/2.f - 6.f, ib.width + 16.f, ib.height + 12.f);
-                    if (hit.contains(mouseUI)) {
+            // Victory EXIT button handling
+            if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                // Map mouse to default view (UI) coords and check Victory EXIT button
+                sf::Vector2f mouseUI = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
+                if (levelManager.getCurrentState() == GameState::VICTORY) {
+                    if (s_victoryExitRect.contains(mouseUI)) {
                         if (uiClickSound.getBuffer()) uiClickSound.play();
-                        if (items[i] == "EXIT") { window.close(); }
-                        else if (items[i] == "RETRY ROUND") { reset(); }
-                        break;
+                        window.close();
+                        continue; // consume click
                     }
                 }
-                continue; // consume click
+
+                // Pause overlay handling
+                if (paused && !showingControls && !showingSettings) {
+                    std::vector<std::string> labels = { "Resume", "Controls", "Settings", "Exit" };
+                    unsigned int fontSize = static_cast<unsigned int>(std::min(160.f, static_cast<float>(window.getSize().y) / 15.f));
+                    float spacing = static_cast<float>(fontSize) * 0.25f;
+                    float centerX = static_cast<float>(window.getSize().x) * 0.5f;
+                    float centerY = static_cast<float>(window.getSize().y) * 0.5f;
+
+                    sf::Text proto; proto.setFont(font); proto.setCharacterSize(fontSize); proto.setString("Ay");
+                    sf::FloatRect ph = proto.getLocalBounds();
+                    float lineH = ph.height + ph.top;
+                    float totalH = labels.size() * lineH + (labels.size() - 1) * spacing;
+                    float startY = centerY - totalH * 0.5f;
+
+                    sf::Vector2f world = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
+                    for (size_t i = 0; i < labels.size(); ++i) {
+                        sf::Text t; t.setFont(font); t.setCharacterSize(fontSize); t.setString(labels[i]);
+                        sf::FloatRect tb = t.getLocalBounds();
+                        float tx = centerX - (tb.left + tb.width / 2.f);
+                        float ty = startY + static_cast<float>(i) * (lineH + spacing) + lineH * 0.5f - tb.top;
+                        sf::FloatRect hitRect(tx + tb.left, ty + tb.top, tb.width, tb.height);
+                        if (hitRect.contains(world)) {
+                            if (labels[i] == "Exit") {
+                                if (uiClickSound.getBuffer()) uiClickSound.play();
+                                window.close();
+                            }
+                            else if (labels[i] == "Resume") {
+                                if (uiClickSound.getBuffer()) uiClickSound.play();
+                                paused = false; showingControls = false; window.setMouseCursorVisible(false);
+                            }
+                            else if (labels[i] == "Controls") {
+                                if (uiClickSound.getBuffer()) uiClickSound.play();
+                                showingControls = !showingControls; window.setMouseCursorVisible(showingControls);
+                            }
+                            else if (labels[i] == "Settings") {
+                                if (uiClickSound.getBuffer()) uiClickSound.play();
+                                showingSettings = !showingSettings; window.setMouseCursorVisible(showingSettings);
+                            }
+                            break;
+                        }
+                    }
+                    continue; // consume click
+                }
+
+                // Controls panel Back button
+                if (paused && showingControls) {
+                    sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
+                    float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
+                    float gap = 20.f;
+                    const float PANEL_EXTRA_OFFSET = 80.f;
+                    float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panelSize.y / 2.f;
+                    sf::Vector2f panelPos(window.getSize().x / 2.f, panelCenterY);
+
+                    const unsigned int BACK_CHAR_SIZE = 36u;
+                    const float ICON_W = 52.f;
+                    const float ICON_PAD = 12.f;
+                    sf::Text tmpBack; tmpBack.setFont(font); tmpBack.setCharacterSize(BACK_CHAR_SIZE); tmpBack.setString("Back");
+                    sf::FloatRect backBounds = tmpBack.getLocalBounds();
+                    float backWidth = backBounds.width + backBounds.left + 28.f + ICON_W + ICON_PAD;
+                    float backHeight = backBounds.height + backBounds.top + 20.f;
+                    sf::Vector2f backPos(panelPos.x + panelSize.x / 2.f - BACK_PANEL_MARGIN - backWidth,
+                        panelPos.y + panelSize.y / 2.f - BACK_PANEL_MARGIN - backHeight);
+
+                    sf::Vector2f world = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
+                    sf::FloatRect backRect(backPos.x, backPos.y, backWidth, backHeight);
+                    if (backRect.contains(world)) {
+                        if (uiClickSound.getBuffer()) uiClickSound.play();
+                        showingControls = false; window.setMouseCursorVisible(true);
+                        continue;
+                    }
+                }
+
+                // Settings panel hit tests
+                if (paused && showingSettings) {
+                    sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
+                    float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
+                    float gap = 20.f;
+                    const float PANEL_EXTRA_OFFSET = 80.f;
+                    float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panelSize.y / 2.f;
+                    sf::Vector2f panelPos(window.getSize().x / 2.f, panelCenterY);
+
+                    float sliderWidth = panelSize.x * 0.55f;
+                    float sliderX = panelPos.x - sliderWidth / 2.f;
+                    float panelTop = panelPos.y - panelSize.y / 2.f;
+                    float rowYStart = panelTop + 130.f;
+                    float rowSpacing = 60.f;
+
+                    sf::Vector2f mousef = window.mapPixelToCoords(sf::Vector2i(event.mouseButton.x, event.mouseButton.y), window.getDefaultView());
+
+                    float hr_left = 4.f; float hr_topOff = 6.f; float hr_extraW = 8.f; float hr_h = 20.f;
+                    sf::FloatRect masterBarRect(sliderX - hr_left, rowYStart - hr_topOff, sliderWidth + hr_extraW, hr_h);
+                    sf::FloatRect musicBarRect(sliderX - hr_left, rowYStart + rowSpacing - hr_topOff, sliderWidth + hr_extraW, hr_h);
+                    sf::FloatRect sfxBarRect(sliderX - hr_left, rowYStart + rowSpacing * 2 - hr_topOff, sliderWidth + hr_extraW, hr_h);
+
+                    if (masterBarRect.contains(mousef)) { draggingSlider = 0; float p = (mousef.x - sliderX) / sliderWidth; masterVolume = std::clamp(p * 100.f, 0.f, 100.f); masterMuted = (masterVolume <= 0.0f); applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
+                    if (musicBarRect.contains(mousef)) { draggingSlider = 1; float p = (mousef.x - sliderX) / sliderWidth; musicVolume = std::clamp(p * 100.f, 0.f, 100.f); musicMuted = (musicVolume <= 0.0f); applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
+                    if (sfxBarRect.contains(mousef)) { draggingSlider = 2; float p = (mousef.x - sliderX) / sliderWidth; sfxVolume = std::clamp(p * 100.f, 0.f, 100.f); sfxMuted = (sfxVolume <= 0.0f); applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
+
+                    float muteX = sliderX + sliderWidth + 60.f;
+                    float muteW = 22.f, muteH = 22.f;
+                    sf::FloatRect masterMuteRect(muteX, rowYStart - 6.f, muteW, muteH);
+                    sf::FloatRect musicMuteRect(muteX, rowYStart + rowSpacing - 6.f, muteW, muteH);
+                    sf::FloatRect sfxMuteRect(muteX, rowYStart + rowSpacing * 2 - 6.f, muteW, muteH);
+                    if (masterMuteRect.contains(mousef)) { masterMuted = !masterMuted; applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
+                    if (musicMuteRect.contains(mousef)) { musicMuted = !musicMuted; applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
+                    if (sfxMuteRect.contains(mousef)) { sfxMuted = !sfxMuted; applyAudioSettings(); if (uiClickSound.getBuffer()) uiClickSound.play(); continue; }
+
+                    // Back button in settings
+                    const unsigned int BACK_CHAR_SIZE = 36u;
+                    const float ICON_W = 52.f;
+                    const float ICON_PAD = 12.f;
+                    sf::Text tmpBack; tmpBack.setFont(font); tmpBack.setCharacterSize(BACK_CHAR_SIZE); tmpBack.setString("Back");
+                    sf::FloatRect backBounds = tmpBack.getLocalBounds();
+                    float backWidth = backBounds.width + backBounds.left + 28.f + ICON_W + ICON_PAD;
+                    float backHeight = backBounds.height + backBounds.top + 20.f;
+                    sf::Vector2f backPos(panelPos.x + panelSize.x / 2.f - BACK_PANEL_MARGIN - backWidth,
+                        panelPos.y + panelSize.y / 2.f - BACK_PANEL_MARGIN - backHeight);
+                    sf::FloatRect backRect(backPos.x, backPos.y, backWidth, backHeight);
+                    if (backRect.contains(mousef)) { if (uiClickSound.getBuffer()) uiClickSound.play(); showingSettings = false; window.setMouseCursorVisible(true); continue; }
+                }
+
+                // GAME OVER menu handling (clicks)
+                if (gameOverTriggered && gameOverMenuAlpha > 0.05f) {
+                    unsigned int itemSize = static_cast<unsigned int>(std::min(124.f, static_cast<float>(window.getSize().y) * 0.08f));
+                    float startY = static_cast<float>(window.getSize().y) * 0.50f;
+                    float lineSpacing = static_cast<float>(window.getSize().y) * 0.1f;
+                    std::vector<std::string> items = { "RETRY ROUND", "EXIT" };
+
+                    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+                    sf::Vector2f mouseUI = window.mapPixelToCoords(mousePixel, window.getDefaultView());
+
+                    for (size_t i = 0; i < items.size(); ++i) {
+                        sf::Text it; it.setFont(font); it.setCharacterSize(itemSize); it.setStyle(sf::Text::Bold);
+                        it.setString(items[i]);
+                        sf::FloatRect ib = it.getLocalBounds();
+                        it.setOrigin(ib.left + ib.width / 2.f, ib.top + ib.height / 2.f);
+                        float y = startY + static_cast<float>(i) * lineSpacing;
+                        it.setPosition(static_cast<float>(window.getSize().x) * 0.5f, y);
+                        sf::FloatRect hit(it.getPosition().x - ib.width / 2.f - 8.f, it.getPosition().y - ib.height / 2.f - 6.f, ib.width + 16.f, ib.height + 12.f);
+                        if (hit.contains(mouseUI)) {
+                            if (uiClickSound.getBuffer()) uiClickSound.play();
+                            if (items[i] == "EXIT") { window.close(); }
+                            else if (items[i] == "RETRY ROUND") { reset(); }
+                            break;
+                        }
+                    }
+                    continue; // consume click
+                }
+
+                // Default: defer shooting
+                sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
+                shootRequested = true;
+                shootTarget = window.mapPixelToCoords(mousePosition, gameView);
             }
 
-            // Default: defer shooting
-            sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
-            shootRequested = true;
-            shootTarget = window.mapPixelToCoords(mousePosition, gameView);
-        }
-
-        else if (event.type == sf::Event::MouseButtonReleased) {
-            if (event.mouseButton.button == sf::Mouse::Left) {
-                if (draggingSlider != -1) {
-                    draggingSlider = -1;
-                    if (uiClickSound.getBuffer()) uiClickSound.play();
+            else if (event.type == sf::Event::MouseButtonReleased) {
+                if (event.mouseButton.button == sf::Mouse::Left) {
+                    if (draggingSlider != -1) {
+                        draggingSlider = -1;
+                        if (uiClickSound.getBuffer()) uiClickSound.play();
+                    }
                 }
             }
-        }
 
-        else if (event.type == sf::Event::MouseMoved) {
-            if (paused && showingSettings && draggingSlider != -1) {
-                sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
-                float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
-                float gap = 20.f;
-                const float PANEL_EXTRA_OFFSET = 80.f;
-                float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panelSize.y / 2.f;
-                sf::Vector2f panelPos(window.getSize().x / 2.f, panelCenterY);
+            else if (event.type == sf::Event::MouseMoved) {
+                if (paused && showingSettings && draggingSlider != -1) {
+                    sf::Vector2f panelSize(window.getSize().x * 0.6f, window.getSize().y * 0.6f);
+                    float titleBottom = static_cast<float>(window.getSize().y) / 5.0f;
+                    float gap = 20.f;
+                    const float PANEL_EXTRA_OFFSET = 80.f;
+                    float panelCenterY = titleBottom + gap + PANEL_EXTRA_OFFSET + panelSize.y / 2.f;
+                    sf::Vector2f panelPos(window.getSize().x / 2.f, panelCenterY);
 
-                float sliderWidth = panelSize.x * 0.55f;
-                float sliderX = panelPos.x - sliderWidth/2.f;
+                    float sliderWidth = panelSize.x * 0.55f;
+                    float sliderX = panelPos.x - sliderWidth / 2.f;
 
-                sf::Vector2f mousef = window.mapPixelToCoords(sf::Vector2i(event.mouseMove.x, event.mouseMove.y), window.getDefaultView());
-                float p = (mousef.x - sliderX) / sliderWidth;
-                p = std::clamp(p, 0.f, 1.f);
-                if (draggingSlider == 0) { masterVolume = p * 100.f; masterMuted = (masterVolume <= 0.0f); }
-                else if (draggingSlider == 1) { musicVolume = p * 100.f; musicMuted = (musicVolume <= 0.0f); }
-                else if (draggingSlider == 2) { sfxVolume = p * 100.f; sfxMuted = (sfxVolume <= 0.0f); }
-                applyAudioSettings();
+                    sf::Vector2f mousef = window.mapPixelToCoords(sf::Vector2i(event.mouseMove.x, event.mouseMove.y), window.getDefaultView());
+                    float p = (mousef.x - sliderX) / sliderWidth;
+                    p = std::clamp(p, 0.f, 1.f);
+                    if (draggingSlider == 0) { masterVolume = p * 100.f; masterMuted = (masterVolume <= 0.0f); }
+                    else if (draggingSlider == 1) { musicVolume = p * 100.f; musicMuted = (musicVolume <= 0.0f); }
+                    else if (draggingSlider == 2) { sfxVolume = p * 100.f; sfxMuted = (sfxVolume <= 0.0f); }
+                    applyAudioSettings();
+                }
             }
         }
     }
@@ -883,6 +906,77 @@ void Game::update(float deltaTime) {
 
     checkZombiePlayerCollisions();
     checkPlayerBoundaries();
+}
+
+void Game::drawVictoryScreen() {
+    // Use default view coordinates (screen/UI space)
+    sf::Vector2u windowSize = window.getSize();
+
+    // Title: large centered "VICTORY"
+    sf::Text title;
+    title.setFont(font);
+    unsigned int titleSize = static_cast<unsigned int>(std::min(300.f, static_cast<float>(windowSize.y) * 0.15f));
+    title.setCharacterSize(titleSize);
+    title.setStyle(sf::Text::Bold);
+    title.setString("VICTORY");
+    title.setFillColor(sf::Color(255,255,255,255));
+    title.setOutlineColor(sf::Color(0,0,0,255));
+    title.setOutlineThickness(3.f);
+    sf::FloatRect tbTitle = title.getLocalBounds();
+    title.setOrigin(tbTitle.left + tbTitle.width * 0.5f, tbTitle.top + tbTitle.height * 0.5f);
+    title.setPosition(static_cast<float>(windowSize.x) * 0.5f, static_cast<float>(windowSize.y) * 0.34f);
+    window.draw(title);
+
+    // Label
+    sf::Text exitText;
+    exitText.setFont(font);
+    unsigned int exitCharSize = static_cast<unsigned int>(std::max(70.f, static_cast<float>(windowSize.y) * 0.055f));
+    exitText.setCharacterSize(exitCharSize);
+    exitText.setStyle(sf::Text::Bold);
+    exitText.setString("EXIT");
+    exitText.setFillColor(sf::Color::White);
+    exitText.setOutlineColor(sf::Color::Black);
+    exitText.setOutlineThickness(2.f);
+
+    sf::FloatRect tb = exitText.getLocalBounds();
+    exitText.setOrigin(tb.left + tb.width * 0.5f, tb.top + tb.height * 0.5f);
+    // Position EXIT below the title
+    sf::Vector2f pos(static_cast<float>(windowSize.x) * 0.5f, static_cast<float>(windowSize.y) * 0.55f);
+    exitText.setPosition(pos);
+
+    // padded hit rect
+    const float padX = 18.f;
+    const float padY = 10.f;
+    s_victoryExitRect.left = pos.x - tb.width * 0.5f - padX;
+    s_victoryExitRect.top = pos.y - tb.height * 0.5f - padY;
+    s_victoryExitRect.width = tb.width + padX * 2.f;
+    s_victoryExitRect.height = tb.height + padY * 2.f;
+
+    // Determine hover using default-view mouse coords. Use a slightly enlarged
+    // hover zone so the user has an easier target when the text scales up.
+    const float hoverScale = 1.06f;
+    sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+    sf::Vector2f mouseUI = window.mapPixelToCoords(mousePixel, window.getDefaultView());
+    float scaledW = tb.width * hoverScale;
+    float scaledH = tb.height * hoverScale;
+    sf::FloatRect hoverRect(pos.x - scaledW * 0.5f - padX, pos.y - scaledH * 0.5f - padY, scaledW + padX * 2.f, scaledH + padY * 2.f);
+    bool hovered = hoverRect.contains(mouseUI);
+    if (hovered && !s_victoryWasHovered) { if (uiHoverSound.getBuffer()) uiHoverSound.play(); }
+    s_victoryWasHovered = hovered;
+
+    // Choose final scale based on hover state and update the stored hit rect
+    float finalScale = hovered ? hoverScale : 1.0f;
+    float displayW = tb.width * finalScale;
+    float displayH = tb.height * finalScale;
+    s_victoryExitRect.left = pos.x - displayW * 0.5f - padX;
+    s_victoryExitRect.top = pos.y - displayH * 0.5f - padY;
+    s_victoryExitRect.width = displayW + padX * 2.f;
+    s_victoryExitRect.height = displayH + padY * 2.f;
+
+    // Tint and scale the text when hovered (no box)
+    exitText.setScale(finalScale, finalScale);
+    exitText.setFillColor(hovered ? sf::Color::Yellow : sf::Color::White);
+    window.draw(exitText);
 }
 
 void Game::render() {
@@ -1065,6 +1159,12 @@ void Game::render() {
     // Draw zombie count in top-left corner
     levelManager.renderUI(window, font);
     levelManager.drawHUD(window, player);
+
+    if (levelManager.getCurrentState() == GameState::VICTORY) {
+        // Ensure UI/default view is active
+        window.setView(window.getDefaultView());
+        drawVictoryScreen();
+    }
 
     // Determine whether OS cursor should be visible (menus, cutscenes, game-over)
     {

@@ -53,6 +53,14 @@ void Guts::init() {
 
 void Guts::setTexture(const sf::Texture& tex) {
     Guts::_texture = tex;
+    if (Guts::_texture.getSize().x > 0) {
+        for (auto g : Guts::_active) {
+            g->_sprite.setTexture(Guts::_texture);
+            g->_sprite.setOrigin(Guts::_texture.getSize().x / 2.f,
+                Guts::_texture.getSize().y / 2.f);
+            g->_sprite.setScale(0.05f, 0.05f);
+        }
+    }
 }
 
 void Guts::update(float dt) {

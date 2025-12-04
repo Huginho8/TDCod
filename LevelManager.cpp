@@ -139,7 +139,7 @@ LevelManager::LevelManager()
         "Thats all, good luck..."
     };
 
-    if (!font.loadFromFile("TDCod/Assets/CallOfDuty.ttf")) {
+    if (!font4.loadFromFile("TDCod/Assets/CallOfDuty.ttf")) {
         std::cerr << "Error loading font for dialog! Trying fallback." << std::endl;
     }
     if (!font2.loadFromFile("TDCod/Assets/SwanseaBold-D0ox.ttf")) {
@@ -171,7 +171,7 @@ LevelManager::LevelManager()
     transitionRect.setFillColor(sf::Color::Black);
     transitionRect.setPosition(0, 0);
 
-    levelStartText.setFont(font);
+    levelStartText.setFont(font4);
     levelStartText.setCharacterSize(48);
     levelStartText.setFillColor(sf::Color::White);
     levelStartText.setPosition(300, 500);
@@ -385,6 +385,7 @@ void LevelManager::renderBullets(sf::RenderWindow& window, std::vector<std::uniq
 }
 
 void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
+    // Existing dialog handling (unchanged)
     if (showingDialog && currentDialogIndex < tutorialDialogs.size()) {
         dialogText.setFont(this->font2);
         showTutorialDialog(window);
@@ -419,35 +420,35 @@ void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
         int currIdx = std::clamp(currentRound, 0, 4);
         int prevIdx = lastTallyIndex;
 
-        const sf::Texture* currTex = (currIdx >=0) ? tallyTextures[currIdx] : nullptr;
-        const sf::Texture* prevTex = (prevIdx >=0) ? tallyTextures[prevIdx] : nullptr;
+        const sf::Texture* currTex = (currIdx >= 0) ? tallyTextures[currIdx] : nullptr;
+        const sf::Texture* prevTex = (prevIdx >= 0) ? tallyTextures[prevIdx] : nullptr;
 
         // small top-right scale and larger center scale
         const float topRightScale = 0.6f; // smaller when shown in top-right
         const float centerScale = 1.4f;   // scale when centered (reduced from 1.8)
         auto drawTallySprite = [&](const sf::Texture* tex, float alphaMul, float t) {
-             if (!tex) return;
-             sf::Sprite s; s.setTexture(*tex);
-             sf::Vector2u ts = tex->getSize();
-             float baseW = static_cast<float>(ts.x);
-             float baseH = static_cast<float>(ts.y);
-             float margin = 12.f;
-             sf::Vector2f topRightPos(winW - margin - baseW, margin);
-             sf::Vector2f topMidPos((winW - baseW) * 0.5f, winH * 0.15f);
-             // interpolate position and scale based on t (0..1)
-             float drawX = topRightPos.x + (topMidPos.x - topRightPos.x) * t;
-             float drawY = topRightPos.y + (topMidPos.y - topRightPos.y) * t;
-             // scale interpolates between a smaller top-right scale and a larger center scale
-             float scale = topRightScale + (centerScale - topRightScale) * t;
-             s.setScale(scale, scale);
-             s.setPosition(drawX, drawY);
-             sf::Color prev = s.getColor();
-             // compute alpha and apply only alpha so PNG colors remain intact
-             sf::Uint8 a = static_cast<sf::Uint8>(255 * alphaMul);
-             s.setColor(sf::Color(255, 255, 255, a));
-             window.draw(s);
-             s.setColor(prev);
-        };
+            if (!tex) return;
+            sf::Sprite s; s.setTexture(*tex);
+            sf::Vector2u ts = tex->getSize();
+            float baseW = static_cast<float>(ts.x);
+            float baseH = static_cast<float>(ts.y);
+            float margin = 12.f;
+            sf::Vector2f topRightPos(winW - margin - baseW, margin);
+            sf::Vector2f topMidPos((winW - baseW) * 0.5f, winH * 0.15f);
+            // interpolate position and scale based on t (0..1)
+            float drawX = topRightPos.x + (topMidPos.x - topRightPos.x) * t;
+            float drawY = topRightPos.y + (topMidPos.y - topRightPos.y) * t;
+            // scale interpolates between a smaller top-right scale and a larger center scale
+            float scale = topRightScale + (centerScale - topRightScale) * t;
+            s.setScale(scale, scale);
+            s.setPosition(drawX, drawY);
+            sf::Color prev = s.getColor();
+            // compute alpha and apply only alpha so PNG colors remain intact
+            sf::Uint8 a = static_cast<sf::Uint8>(255 * alphaMul);
+            s.setColor(sf::Color(255, 255, 255, a));
+            window.draw(s);
+            s.setColor(prev);
+            };
 
         // If a transition is active we animate t from 0->1 across the levelTransitionDuration
         // For round transitions, use roundTransitionTimer. Otherwise fall back to levelTransitioning.
@@ -455,7 +456,8 @@ void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
         float t = 0.f;
         if (inRoundTransition) {
             t = std::clamp(roundTransitionTimer / std::max(0.0001f, roundTransitionDuration), 0.f, 1.f);
-        } else if (levelTransitioning) {
+        }
+        else if (levelTransitioning) {
             t = std::clamp(levelTransitionTimer / std::max(0.0001f, levelTransitionDuration), 0.f, 1.f);
         }
 
@@ -468,10 +470,6 @@ void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
         // Ensure member duration matches sum so update() uses same value
         float totalDur = moveInT + prevHoldT + newFadeInT + newHoldT + moveBackT;
         // keep roundTransitionDuration in sync
-        // (only update when transition is active so update() end condition matches)
-        // Note: roundTransitionDuration is set at transition start as well; sync here to be safe
-        // but do not modify it if it's already larger than computed total (shouldn't happen)
-        // Assign for deterministic behavior
         roundTransitionDuration = totalDur; // sync duration used by update()
 
         if (inTrans) {
@@ -481,27 +479,29 @@ void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
                 float eased = easeInOutCubic(tm);
                 const sf::Texture* prevToMove = (lastTallyIndex >= 0) ? tallyTextures[lastTallyIndex] : prevTex;
                 drawTallySprite(prevToMove, 1.0f, eased);
-            } else if (rt < moveInT + prevHoldT) {
+            }
+            else if (rt < moveInT + prevHoldT) {
                 const sf::Texture* prevToMove = (lastTallyIndex >= 0) ? tallyTextures[lastTallyIndex] : prevTex;
                 drawTallySprite(prevToMove, 1.0f, 1.0f);
-            } else if (rt < moveInT + prevHoldT + newFadeInT) {
+            }
+            else if (rt < moveInT + prevHoldT + newFadeInT) {
                 float sub = rt - (moveInT + prevHoldT);
                 float fadeT = sub / newFadeInT; // 0..1 crossfade
                 float easedFade = easeInOutCubic(fadeT);
-                // crossfade at center: prev fades out, curr fades in (eased)
                 const sf::Texture* prevToMove = (lastTallyIndex >= 0) ? tallyTextures[lastTallyIndex] : prevTex;
                 drawTallySprite(prevToMove, 1.0f - easedFade, 1.0f);
                 drawTallySprite(currTex, easedFade, 1.0f);
-            } else if (rt < moveInT + prevHoldT + newFadeInT + newHoldT) {
+            }
+            else if (rt < moveInT + prevHoldT + newFadeInT + newHoldT) {
                 // new fully visible at center for newHoldT
                 drawTallySprite(currTex, 1.0f, 1.0f);
-            } else {
+            }
+            else {
                 // move back phase: new shrinks/moves from center back to top-right
                 float sub = rt - (moveInT + prevHoldT + newFadeInT + newHoldT);
                 float mbt = std::max(0.0001f, moveBackT);
                 float pm = std::clamp(sub / mbt, 0.f, 1.f);
                 float easedPM = easeInOutCubic(pm);
-                // pm 0 -> 1: map to t_for_new = 1.0 - easedPM (1->0) for drawTallySprite
                 drawTallySprite(currTex, 1.0f, 1.0f - easedPM);
             }
 
@@ -509,10 +509,37 @@ void LevelManager::renderUI(sf::RenderWindow& window, sf::Font& font) {
             if (inRoundTransition && t >= 1.0f) {
                 lastTallyIndex = currIdx;
             }
-        } else {
+        }
+        else {
             drawTallySprite(currTex, 1.0f, 0.0f);
             lastTallyIndex = currIdx;
         }
+    }
+
+    // Single zombie count draw (top-left). Kept here to avoid duplicate draws.
+    if (!levelTransitioning || (levelTransitioning && (transitionState == TransitionState::FADE_OUT || transitionState == TransitionState::FADE_IN))) {
+        // Only show zombie count in top-left; remove level/round text
+        sf::Text zombieCountText;
+        zombieCountText.setFont(font4);
+        zombieCountText.setCharacterSize(40);
+        // use an explicit padding constant for clarity
+        const float uiPadding = 10.f;
+        zombieCountText.setPosition(uiPadding + 2.f, uiPadding + 6.f);
+        // add a black outline so the text is readable over varying backgrounds
+        zombieCountText.setOutlineThickness(2.f);
+
+        sf::Uint8 alpha = 255;
+        if (levelTransitioning) {
+            if (transitionState == TransitionState::FADE_IN) alpha = static_cast<sf::Uint8>(255 * (1.0f - (levelTransitionTimer / levelTransitionDuration)));
+            else if (transitionState == TransitionState::FADE_OUT) alpha = static_cast<sf::Uint8>(255 * (levelTransitionTimer / levelTransitionDuration));
+            else alpha = 0;
+        }
+
+        // apply fill and outline with the current alpha so both fade correctly during transitions
+        zombieCountText.setFillColor(sf::Color(255, 255, 255, alpha));
+        zombieCountText.setOutlineColor(sf::Color(0, 0, 0, alpha));
+        zombieCountText.setString("Zombies Left: " + std::to_string(zombies.size() + zombiesToSpawn.size()));
+        window.draw(zombieCountText);
     }
 }
 
@@ -1207,30 +1234,6 @@ void LevelManager::drawHUD(sf::RenderWindow& window, const Player& player) {
             window.draw(vline);
         }
     }
-
-    if (!levelTransitioning || (levelTransitioning && (transitionState == TransitionState::FADE_OUT || transitionState == TransitionState::FADE_IN))) {
-        // Only show zombie count in top-left; remove level/round text
-        sf::Text zombieCountText;
-        zombieCountText.setFont(font);
-        zombieCountText.setCharacterSize(42);
-        zombieCountText.setPosition(padding + 2.f, padding + 6.f);
-        // add a black outline so the text is readable over varying backgrounds
-        zombieCountText.setOutlineThickness(2.f);
-        // outline color will be set with alpha below to match transitions
-
-        sf::Uint8 alpha = 255;
-        if (levelTransitioning) {
-            if (transitionState == TransitionState::FADE_IN) alpha = static_cast<sf::Uint8>(255 * (1.0f - (levelTransitionTimer / levelTransitionDuration)));
-            else if (transitionState == TransitionState::FADE_OUT) alpha = static_cast<sf::Uint8>(255 * (levelTransitionTimer / levelTransitionDuration));
-            else alpha = 0;
-        }
-
-        // apply fill and outline with the current alpha so both fade correctly during transitions
-        zombieCountText.setFillColor(sf::Color(255, 255, 255, alpha));
-        zombieCountText.setOutlineColor(sf::Color(0, 0, 0, alpha));
-        zombieCountText.setString("Zombies: " + std::to_string(zombies.size() + zombiesToSpawn.size()));
-        window.draw(zombieCountText);
-    }
 }
 
 void LevelManager::showTutorialDialog(sf::RenderWindow& window) {
@@ -1412,9 +1415,9 @@ void LevelManager::initializeDefaultConfigs() {
     tutorialConfig.animSpeed = 0.12f;
 
     // Round configs (5 rounds)
-    roundConfigs[0].count = 50; roundConfigs[0].health = 40.0f; roundConfigs[0].damage = 18.0f; roundConfigs[0].speed = 80.0f; roundConfigs[0].animSpeed = 0.11f;
-    roundConfigs[1].count = 75; roundConfigs[1].health = 40.0f; roundConfigs[1].damage = 20.0f; roundConfigs[1].speed = 90.0f; roundConfigs[1].animSpeed = 0.10f;
-    roundConfigs[2].count = 100; roundConfigs[2].health = 40.0f; roundConfigs[2].damage = 22.0f; roundConfigs[2].speed = 92.0f; roundConfigs[2].animSpeed = 0.095f;
-    roundConfigs[3].count = 125; roundConfigs[3].health = 50.0f; roundConfigs[3].damage = 25.0f; roundConfigs[3].speed = 95.0f; roundConfigs[3].animSpeed = 0.09f;
-    roundConfigs[4].count = 150; roundConfigs[4].health = 60.0f; roundConfigs[4].damage = 30.0f; roundConfigs[4].speed = 100.0f; roundConfigs[4].animSpeed = 0.085f;
+    roundConfigs[0].count = 1; roundConfigs[0].health = 40.0f; roundConfigs[0].damage = 18.0f; roundConfigs[0].speed = 80.0f; roundConfigs[0].animSpeed = 0.11f;
+    roundConfigs[1].count = 1; roundConfigs[1].health = 40.0f; roundConfigs[1].damage = 20.0f; roundConfigs[1].speed = 90.0f; roundConfigs[1].animSpeed = 0.10f;
+    roundConfigs[2].count = 1; roundConfigs[2].health = 40.0f; roundConfigs[2].damage = 22.0f; roundConfigs[2].speed = 92.0f; roundConfigs[2].animSpeed = 0.095f;
+    roundConfigs[3].count = 1; roundConfigs[3].health = 50.0f; roundConfigs[3].damage = 25.0f; roundConfigs[3].speed = 95.0f; roundConfigs[3].animSpeed = 0.09f;
+    roundConfigs[4].count = 1; roundConfigs[4].health = 60.0f; roundConfigs[4].damage = 30.0f; roundConfigs[4].speed = 100.0f; roundConfigs[4].animSpeed = 0.085f;
 }
