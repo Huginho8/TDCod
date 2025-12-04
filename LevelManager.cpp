@@ -827,12 +827,12 @@ void LevelManager::setCameraViewRect(const sf::FloatRect& viewRect) { cameraView
 void LevelManager::render(sf::RenderWindow& window) { draw(window); }
 
 void LevelManager::initializeDefaultConfigs() {
-    tutorialConfig = ZombieRoundConfig{10, 40.0f, 10.0f, 55.0f, 0.12f};
-    roundConfigs[0] = ZombieRoundConfig{50, 40.0f, 18.0f, 80.0f, 0.11f};
-    roundConfigs[1] = ZombieRoundConfig{75, 40.0f, 20.0f, 90.0f, 0.10f};
-    roundConfigs[2] = ZombieRoundConfig{100, 40.0f, 22.0f, 92.0f, 0.095f};
-    roundConfigs[3] = ZombieRoundConfig{125, 50.0f, 25.0f, 95.0f, 0.09f};
-    roundConfigs[4] = ZombieRoundConfig{150, 60.0f, 30.0f, 100.0f, 0.085f};
+    tutorialConfig = ZombieRoundConfig{1, 40.0f, 10.0f, 55.0f, 0.12f};
+    roundConfigs[0] = ZombieRoundConfig{20, 40.0f, 18.0f, 80.0f, 0.11f};
+    roundConfigs[1] = ZombieRoundConfig{1, 40.0f, 20.0f, 90.0f, 0.10f};
+    roundConfigs[2] = ZombieRoundConfig{1, 40.0f, 22.0f, 92.0f, 0.095f};
+    roundConfigs[3] = ZombieRoundConfig{1, 50.0f, 25.0f, 95.0f, 0.09f};
+    roundConfigs[4] = ZombieRoundConfig{1, 60.0f, 30.0f, 100.0f, 0.085f};
 }
 
 void LevelManager::ensurePoolSize(int desired) {
