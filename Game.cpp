@@ -27,8 +27,7 @@ Game::Game()
     gameOverAlpha(0.0f),
     gameOverFadeDuration(1.5f) // 1.5 seconds for game over fade
 {
-    // Create fullscreen window using desktop resolution but keep a fixed
-    // logical game size (800x600). Use view viewport to letterbox/pillarbox
+    // Create fullscreen window using desktop resolution and use letter/pillarbox
     // so content isn't stretched.
     sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
     window.create(desktop, "Echoes of Valkyrie", sf::Style::Fullscreen);
@@ -36,9 +35,7 @@ Game::Game()
     // Hide OS cursor; we'll draw a small dot as the custom cursor
     window.setMouseCursorVisible(false);
 
-    // Set the game view to match the desktop/fullscreen resolution so the
-    // render target matches the window pixel size. This will stretch sprites
-    // to fill the screen but matches the user's native resolution as requested.
+    // Set the game view to match the desktop/fullscreen resolution
     float desktopW = static_cast<float>(desktop.width);
     float desktopH = static_cast<float>(desktop.height);
     gameView.setSize(desktopW, desktopH);
@@ -294,14 +291,12 @@ Game::Game()
             pauseIconSprites[i].setTexture(pauseIconTextures[i]);
         } else {
             // leave empty; panel will draw placeholder slot
-            // std::cerr << "Warning: failed to load pause icon " << path << std::endl;
         }
     }
     // Load back icon (escape icon) used by the back button in the panel
     std::string backPath = "TDCod/Scene/Assets2/Icons/esc.png";
     if (!backIconTexture.loadFromFile(backPath)) {
         // Not fatal; panel will draw placeholder slot instead
-        // std::cerr << "Warning: failed to load back icon " << backPath << std::endl;
     } else {
         backIconTexture.setSmooth(true);
         backIconSprite.setTexture(backIconTexture);
@@ -819,7 +814,7 @@ void Game::update(float deltaTime) {
     levelManager.setCameraViewRect(viewRect);
 
     // Automatic fire for rifle: allow continuous shooting while left mouse button is held.
-    // Pistol remains single-shot via the MouseButtonPressed event in processInput.
+    // Pistol remains single-shot
     if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
         if (player.getCurrentWeapon() == WeaponType::RIFLE && player.timeSinceLastShot >= player.fireCooldown) {
             player.shoot(worldMousePosition, physics, bullets);
@@ -896,9 +891,7 @@ void Game::update(float deltaTime) {
     localPhysicsAccum += msd(u1 - u0).count();
     localLevelAccum += msd(u2 - u1).count();
 
-    // Transfer local accumulators to the ones in run by printing them to cout (we'll push them via a simple aggregator)
-    // To avoid modifying run's statics directly from here, we will cache the values in Game object fields and pick them up inside run when printing.
-    // Add fields to Game in header would be needed, but simplest approach: print per-sample here for debug as well.
+    // debug
     if (levelManager.getDebugLogging()) {
         std::cout << "[UpdateTiming] physics(ms)=" << msd(u1 - u0).count()
                   << " level(ms)=" << msd(u2 - u1).count()
@@ -1133,9 +1126,7 @@ void Game::render() {
     if (bloodTexture.getSize().x > 0) {
         float healthPercent = 1.0f;
         if (player.getMaxHealth() > 0.0f) healthPercent = std::clamp(player.getCurrentHealth() / player.getMaxHealth(), 0.0f, 1.0f);
-        // intensity grows as health decreases. Use exponent to shape curve.
-        // Use an ease-in curve so intensity remains low until health is low, then ramps up:
-        // t = (1 - health)^power. Increase bloodIntensityPow for a steeper ramp near 0 health.
+        // intensity grows as health decreases.
         float t = std::pow(1.0f - healthPercent, bloodIntensityPow);
         t = std::clamp(t, 0.0f, 1.0f);
         float alphaF = bloodMaxAlpha * t; // 0..bloodMaxAlpha
@@ -2054,10 +2045,6 @@ void Game::checkZombiePlayerCollisions() {
     auto& zombiesRef = levelManager.getZombies();
     for (auto it = zombiesRef.begin(); it != zombiesRef.end(); ) {
         BaseZombie* zb = *it;
-        // Do not erase zombies here. LevelManager owns the active zombie list and is responsible
-        // for removing dead zombies, unregistering physics bodies, and recycling pool indices.
-        // Removing pointers from here without coordinating with LevelManager/PhysicsWorld can
-        // leak physics bodies and cause the performance issues you've observed.
 
         sf::FloatRect playerHitbox = player.getHitbox();
 

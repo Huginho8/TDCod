@@ -90,10 +90,6 @@ void PhysicsWorld::resolveCollisions() {
                 if (!a->isTrigger && !b->isTrigger) {
                     resolveDynamicCollision(*a, *b);
                 }
-
-                // Before calling generic onCollision, if this collision is bullet vs zombie,
-                // inform the zombie so it can spawn effects. We do this *before* the regular
-                // onCollision so the zombie sees the hit at the moment of impact.
                 Entity* ea = a->owner;
                 Entity* eb = b->owner;
 

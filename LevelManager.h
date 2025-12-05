@@ -218,15 +218,6 @@ private:
     float pistolBottomScale = 1.3f;
     float rifleTopScale = 2.6f;
     float rifleBottomScale = 2.8f;
-    // Weapon equip request: when a round starts LevelManager can request the Player
-    // to equip a specific weapon. This is set inside spawnZombies and applied in
-    // the next update() call where a Player reference is available.
-    //WeaponType startingWeaponForRound = WeaponType::PISTOL;
-    //bool equipWeaponPending = false;
-    // Previously we forced weapon equips at round start; now we only ensure the
-    // player starts the tutorial with the pistol once. This flag prevents
-    // repeatedly re-equipping the player while allowing them to swap during
-    // the tutorial via input.
     bool tutorialWeaponForced = false;
     
     // Debugging

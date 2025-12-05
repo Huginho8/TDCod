@@ -270,10 +270,6 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
     // Provide legacy alias 'angle' for any remaining code expecting that name
     float angle = moveAngle;
 
-    // Compute rotation towards mouse using physics body as origin.
-    // If the mouse is within a circular dead zone around the origin with radius equal to
-    // the distance from origin to muzzle, skip rotation. This prevents the player from
-    // trying to rotate toward positions that lie between origin and muzzle.
     sf::Vector2f toMouse = worldMousePosition - bodyPos;
     float toMouseLen = std::sqrt(toMouse.x*toMouse.x + toMouse.y*toMouse.y);
     if (toMouseLen > 1e-4f) {
@@ -285,10 +281,6 @@ void Player::update(float deltaTime, sf::RenderWindow& window, sf::Vector2u mapS
         // Compute aim direction from origin to mouse (unit)
         sf::Vector2f aimDir = toMouse / toMouseLen;
 
-        // We'll search numerically for a sprite rotation (in radians) such that a forward
-        // ray emitted from the muzzle (which depends on sprite rotation) passes through the mouse.
-        // This is robust to rotationOffset and arbitrary local offsets.
-        // Prepare local offsets consistent with getMuzzlePosition (no extra scale applied here)
         sf::Vector2f localOffset(0.f, 0.f);
         if (currentWeapon == WeaponType::PISTOL) localOffset = muzzleOffsetPistol;
         else if (currentWeapon == WeaponType::RIFLE) localOffset = muzzleOffsetRifle;
